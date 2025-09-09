@@ -49,10 +49,30 @@ function attachSwipe(wrap) {
   const EXEC_L = () => Math.max(110, OPEN_L() + 24);
   const EXEC_R = () => Math.max(110, OPEN_R() + 24);
 
+let unlockScroll = null;
+  const preventScroll = (ev) => ev.preventDefault();
+  
+  function lockScroll() {
+    if (unlockScroll) return; // already locked
+    document.body.classList.add('lock-scroll');
+    // iOS/Safari: preventDefault on touchmove is the reliable stopper
+    window.addEventListener('touchmove', preventScroll, { passive: false });
+    // Also block wheel (desktop trackpads/mice)
+    window.addEventListener('wheel', preventScroll, { passive: false });
+    unlockScroll = () => {
+      window.removeEventListener('touchmove', preventScroll);
+      window.removeEventListener('wheel', preventScroll);
+      document.body.classList.remove('lock-scroll');
+      unlockScroll = null;
+    };
+  }
+
+
   function setX(x) { row.style.transform = `translate3d(${Math.round(x)}px,0,0)`; }
   function reset() { setX(0); openX = 0; row.style.opacity = 1; setVisuals(0); wrap.classList.remove('swiping'); }
   function haptics() { if (navigator.vibrate) navigator.vibrate(8); }
-  function cleanup() { gesture.swipe = false; tracking = false; captured = false; dx = dy = 0; setVisuals(openX); if(openX===0) wrap.classList.remove('swiping'); }
+  function cleanup() { gesture.swipe = false; tracking = false; captured = false; dx = dy = 0; setVisuals(openX); if(openX===0) wrap.classList.remove('swiping'); if (unlockScroll) unlockScroll();
+}
 
   // Reveal math → write CSS variables on each zone so CSS can animate scale/opacity
   function setVisuals(x){
@@ -114,7 +134,7 @@ function attachSwipe(wrap) {
     if (!captured) {
       const scrolled = Math.abs(((document.scrollingElement || document.documentElement).scrollTop || 0) - scrollYAtDown) > 2;
       if (Math.abs(dy) > SWIPE.VERTICAL_GUARD || scrolled) { cleanup(); return; }
-      if (Math.abs(dx) > Math.max(10, Math.abs(dy))) { captured = true; e.preventDefault(); }
+      if (Math.abs(dx) > Math.max(10, Math.abs(dy))) { captured = true; lockScroll(); e.preventDefault(); }
       else return;
     }
 
@@ -160,7 +180,8 @@ function attachSwipe(wrap) {
     } else {
       animateTo(0); openX = 0; setVisuals(0);
     }
-    gesture.swipe = false;
+    gesture.swipe = false; if (unlockScroll) unlockScroll();
+
     if (openX === 0) wrap.classList.remove('swiping');
   }
 
@@ -270,4 +291,11 @@ function patchCSSOnce(){
     }
   `;
   document.head.appendChild(style);
+  
+  body.lock-scroll {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  .swipe-wrap.swiping .subtask { touch-action: none; } /* belt & suspenders */
+
 }
