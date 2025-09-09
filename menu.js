@@ -109,9 +109,9 @@ function injectTopbarStyles(){
       border-bottom:1px solid var(--border);
     }
     .menu-btn{
-      appearance:none; border:1px solid var(--border); background:#fff; border-radius:12px;
+      appearance:none; border:0px solid var(--border); background:#fff; border-radius:12px;
       min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center;
-      font-size:20px; font-weight:800; box-shadow:0 4px 10px rgba(0,0,0,.08);
+      font-size:20px; font-weight:800; box-shadow:0 0px 0px rgba(0,0,0,.08);
     }
     .menu-btn:active{ transform: translateY(1px); }
     .topbar-title{ font-weight:800; font-size:18px; }
@@ -127,17 +127,42 @@ function injectMenuStyles(){
   if(document.getElementById('menuStylePatch')) return;
   const css = `
     .menu{
-      position:fixed; top: calc(env(safe-area-inset-top) + 12px + var(--topbar-h)); right:12px;
-      background:#fff; border:1px solid var(--border); border-radius:14px; padding:8px;
+      position:fixed; 
+      top: calc(env(safe-area-inset-top) + 12px + var(--topbar-h)); 
+      left: 50%; 
+      transform: translateX(-50%) translateY(-6px) scale(.98);
+      background:#fff; border:1px solid var(--border); border-radius:14px; padding:0;
       box-shadow: 0 10px 24px rgba(0,0,0,.14);
       width:min(260px, calc(100% - 24px));
-      opacity:0; transform: translateY(-6px) scale(.98); pointer-events:none;
+      opacity:0; pointer-events:none;
       transition: opacity 120ms ease, transform 120ms ease;
     }
-    .menu.open{ opacity:1; transform: translateY(0) scale(1); pointer-events:auto; }
+    .menu.open{ 
+      opacity:1; 
+      transform: translateX(-50%) translateY(0) scale(1); 
+      pointer-events:auto; 
+    }
     .menu-item{
       display:flex; width:100%; align-items:center; gap:10px; padding:12px 14px; border:none;
-      background:transparent; border-radius:10px; font-weight:700; font-size:16px; color:var(--text);
+      background:transparent; border-radius:0; font-weight:700; font-size:16px; color:var(--text);
+      position: relative;
+    }
+    .menu-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background-color: var(--border, #e5e7eb);
+    }
+    .menu-item:first-child {
+      border-top-left-radius: 14px;
+      border-top-right-radius: 14px;
+    }
+    .menu-item:last-child {
+      border-bottom-left-radius: 14px;
+      border-bottom-right-radius: 14px;
     }
     .menu-item:hover{ background:#f8f9fa; }
     .menu-item.danger{ color:var(--red); }

@@ -95,7 +95,7 @@ function renderCard(m){
         </div>
         <div class="zone right">
           <button class="action flag" data-act="flag" title="Flag">⚑</button>
-          <button class="action delete" data-act="delete" title="Delete">x</button>
+          <button class="action delete" data-act="delete" title="Delete">X</button>
         </div>
       </div>`;
 
