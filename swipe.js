@@ -16,7 +16,7 @@ const THRESH = {
   EXEC_FRAC: 0.9,
   EXEC_ADD: 24,
   EXEC_MIN: 90,
-  PIN_HOLD_MS: 400,
+  PIN_HOLD_MS: 1000,
   PIN_MIN_DIST: 30,
 };
 
