@@ -3,21 +3,21 @@ import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture } from './co
 
 // Tuning constants
 const SWIPE = {
-  FLING_VX: 0.95,
-  FLING_MIN: 34,
-  FLING_EXPIRE: 60,
+  FLING_VX: 0.6,        // Was 0.95 - much easier now
+  FLING_MIN: 20,        // Was 34 - shorter swipes work
+  FLING_EXPIRE: 80,     // Was 60 - bit more forgiving
   SNAP_MS: 120,
   EXEC_MS: 120,
-  VERTICAL_GUARD: 10,
+  VERTICAL_GUARD: 15,   // Was 10 - steadier hands needed
 };
 
 const THRESH = {
-  SNAP_FRAC: 0.5,
-  EXEC_FRAC: 0.9,
-  EXEC_ADD: 24,
-  EXEC_MIN: 90,
-  PIN_HOLD_MS: 1000,
-  PIN_MIN_DIST: 30,
+  SNAP_FRAC: 0.20,      // Was 0.30 - snap sooner
+  EXEC_FRAC: 0.8,       // Was 1.5 - WAY lower!
+  EXEC_ADD: 15,         // Was 30 - less extra distance
+  EXEC_MIN: 60,         // Was 140 - this was killing you!
+  PIN_HOLD_MS: 350,     // Was 400 - slightly faster
+  PIN_MIN_DIST: 20,     // Was 30 - easier to pin
 };
 
 export function enableSwipe() {
