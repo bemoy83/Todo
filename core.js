@@ -95,7 +95,7 @@ function renderCard(m){
         </div>
         <div class="zone right">
           <button class="action flag" data-act="flag" title="Flag">⚑</button>
-          <button class="action delete" data-act="delete" title="Delete">🗑</button>
+          <button class="action delete" data-act="delete" title="Delete">x</button>
         </div>
       </div>`;
 
@@ -104,7 +104,7 @@ function renderCard(m){
     row.dataset.id = st.id;
     row.dataset.mainId = m.id;
     row.innerHTML = `
-      <div class="sub-handle" aria-label="Drag to move" role="button">≡</div>
+      <div class="sub-handle" aria-label="Drag to move" role="button">⋮⋮</div>
       <div class="sub-text ${st.done ? 'done' : ''}"></div>
       ${st.flagged ? '<div class="flag-dot" aria-hidden="true"></div>' : ''}
     `;

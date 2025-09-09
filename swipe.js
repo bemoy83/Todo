@@ -264,47 +264,44 @@ function patchCSSOnce(){
    .swipe-wrap.swiping .subtask {
      touch-action: none; /* overrides the pan-y above while swiping */
    }
-
     /* Reveal-on-swipe visuals: circular buttons hidden at rest, scale in + slight swell */
     .swipe-actions { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; pointer-events: none; }
-    .swipe-actions .zone { display: flex; align-items: center; padding: 0 12px; gap: 8px; --reveal: 0; --pulse: 1; --act: 44px; }
+    .swipe-actions .zone { display: flex; align-items: center; padding: 0 12px; gap: 8px; --reveal: 0; --pulse: 0.75; --act: 44px; }
     .swipe-actions .zone.left { justify-content: flex-start; }
     .swipe-actions .zone.right { justify-content: flex-end; }
-
-.swipe-actions .action {
-    pointer-events: auto; /* clickable when revealed */
-    width: var(--act); height: var(--act);
-    border-radius: 9999px;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: var(--bg, #e5e7eb); color: var(--fg, #111827);
-    box-shadow: 0 2px 8px rgba(0,0,0,.08);
-    border: none; outline: none;
-    opacity: calc(var(--reveal));
-    transform-origin: center;
-    transform: scale(calc((0.85 + var(--reveal) * 0.25) * var(--pulse)));
-    transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+    .swipe-actions .action {
+        pointer-events: auto; /* clickable when revealed */
+        width: var(--act); height: var(--act);
+        min-width: var(--act); min-height: var(--act); /* Extra protection */
+        border-radius: 9999px;
+        flex-shrink: 0; /* CRITICAL: Prevents compression */
+        box-sizing: border-box; /* Include any borders/padding in dimensions */
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--bg, #e5e7eb); color: var(--fg, #111827);
+        box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        border: none; outline: none;
+        opacity: calc(var(--reveal));
+        transform-origin: center;
+        transform: scale(calc((0.85 + var(--reveal) * 0.40) * var(--pulse)));
+        transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
     }
     .swipe-actions .action:focus-visible {
-    box-shadow: 0 0 0 3px rgba(59,130,246,.45), 0 2px 8px rgba(0,0,0,.10);
+        box-shadow: 0 0 0 3px rgba(59,130,246,.45), 0 2px 8px rgba(0,0,0,.10);
     }
     
     /* Colors per action */
     .swipe-actions .action.complete { --bg: #16a34a; --fg: white; } /* green */
     .swipe-actions .action.flag     { --bg: #f59e0b; --fg: white; } /* amber */
     .swipe-actions .action.delete   { --bg: #ef4444; --fg: white; } /* red */
-
+    
     /* Subtle cascade on right side (later buttons arrive a beat later) */
     .swipe-actions .zone.right .action:nth-child(2) { transition-delay: 0ms;   transform-origin: right center; }
     .swipe-actions .zone.right .action:nth-child(1) { transition-delay: 40ms;  transform-origin: right center; }
     .swipe-actions .zone.left  .action              { transition-delay: 0ms;   transform-origin: left center; }
-
     @media (prefers-reduced-motion: reduce) {
       .subtask { transition: none !important; }
       .swipe-actions .action { transition: opacity 80ms linear; }
     }
   `;
   document.head.appendChild(style);
-  
- 
-
 }
