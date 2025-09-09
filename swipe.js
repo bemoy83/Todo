@@ -107,21 +107,30 @@ function attachSwipe(wrap) {
     }
   }
 
+  // Enhanced schedulePin with better timing
   function schedulePin() {
     clearPin();
     lastMoveTime = performance.now();
+    
     pinTimer = setTimeout(() => {
-      if (performance.now() - lastMoveTime >= THRESH.PIN_HOLD_MS * 0.8) {
+      const timeSinceMove = performance.now() - lastMoveTime;
+      
+      // More lenient timing - if user has been still for 80% of hold time
+      if (timeSinceMove >= THRESH.PIN_HOLD_MS * 0.7) { // Was 0.8, now 0.7
         tryPin();
+      } else {
+        console.log('Pin failed - user moved too recently');
       }
     }, THRESH.PIN_HOLD_MS);
   }
 
+  // Enhanced tryPin function with better feedback
   function tryPin() {
     if (!captured) return;
     const x = openX + dx;
     if (Math.abs(x) < THRESH.PIN_MIN_DIST) return;
-
+  
+    console.log('PINNED!'); // Debug - you should see this
     pinned = true;
     const target = x > 0 ? OPEN_L() : -OPEN_R();
     animateTo(target);
@@ -129,6 +138,10 @@ function attachSwipe(wrap) {
     haptics();
     pulse(x > 0 ? leftZone : rightZone);
     wrap.classList.add('pinned');
+    
+    // Extra visual feedback
+    wrap.style.setProperty('--pin-feedback', '1');
+    setTimeout(() => wrap.style.removeProperty('--pin-feedback'), 200);
   }
 
   // Visual updates
@@ -173,15 +186,15 @@ function attachSwipe(wrap) {
     window.addEventListener('pointerup', onUp, { once: true });
   }
 
-  function onMove(e) {
-    if (!tracking) return;
-
-    const samples = e.getCoalescedEvents?.() || [e];
-    const p = pt(samples[samples.length - 1]);
-    dx = p.x - startX;
-    dy = p.y - startY;
-    lastMoveTime = performance.now();
-
+ function onMove(e) {
+ if (!tracking) return;
+ 
+ const samples = e.getCoalescedEvents?.() || [e];
+ const p = pt(samples[samples.length - 1]);
+ dx = p.x - startX;
+ dy = p.y - startY;
+ lastMoveTime = performance.now();
+ 
     // Update velocity
     const now = performance.now();
     const dt = now - lastT;
@@ -207,57 +220,62 @@ function attachSwipe(wrap) {
 
     e.preventDefault();
     clearPin();
-
+    
     const x = resist(openX + dx);
     setX(x);
     setVisuals(x);
-
-    // Schedule pin if in reasonable range
-    if (Math.abs(x) >= THRESH.PIN_MIN_DIST && Math.abs(x) <= Math.max(OPEN_L(), OPEN_R()) * 0.8) {
-      schedulePin();
-    }
-  }
-
-  function onUp() {
-    window.removeEventListener('pointermove', onMove);
-    tracking = false;
-    clearPin();
-
-    if (pinned) {
-      gesture.swipe = false;
-      unlockScroll?.();
-      return;
-    }
-
-    const x = openX + dx;
-    const revealAmount = Math.max(Math.abs(x) / OPEN_L(), Math.abs(x) / OPEN_R());
     
-    // Fling to execute (with accident protection)
-    const now = performance.now();
-    const fresh = (now - lastT) <= SWIPE.FLING_EXPIRE;
-    const v = fresh ? vx : 0;
-    const flingThreshold = revealAmount > 0.3 ? SWIPE.FLING_VX * 1.5 : SWIPE.FLING_VX;
-    
-    if (captured && Math.abs(v) >= flingThreshold && Math.abs(dx) >= SWIPE.FLING_MIN) {
-      if (v > 0) {
-        haptics(); pulse(leftZone); act('complete'); afterExecute('right');
-      } else {
-        haptics(); pulse(rightZone); act('delete'); afterExecute('left');
+// Schedule pin if in reasonable range
+      const inPinRange = Math.abs(x) >= THRESH.PIN_MIN_DIST && 
+                         Math.abs(x) <= Math.max(OPEN_L(), OPEN_R()) * 0.8;
+      
+      if (inPinRange) {
+        console.log('Scheduling pin...', Math.abs(x)); // Debug
+        schedulePin();
       }
-      return cleanup();
     }
 
-    // Distance-based execute (with accident protection)
-    const execThresholdL = revealAmount > 0.3 ? EXEC_L() * 1.2 : EXEC_L();
-    const execThresholdR = revealAmount > 0.3 ? EXEC_R() * 1.2 : EXEC_R();
-    
-    if (x >= execThresholdL) {
+function onUp() {
+  window.removeEventListener('pointermove', onMove);
+  tracking = false;
+  clearPin();
+  
+  // CRITICAL: Check pinned state FIRST, before any execution logic
+  if (pinned) {
+    gesture.swipe = false;
+    unlockScroll?.();
+    return; // Exit early - no execution when pinned
+  }
+  
+  const x = openX + dx;
+  const revealAmount = Math.max(Math.abs(x) / OPEN_L(), Math.abs(x) / OPEN_R());
+  
+  // Fling to execute
+  const now = performance.now();
+  const fresh = (now - lastT) <= SWIPE.FLING_EXPIRE;
+  const v = fresh ? vx : 0;
+  const flingThreshold = revealAmount > 0.3 ? SWIPE.FLING_VX * 1.5 : SWIPE.FLING_VX;
+  
+  if (captured && Math.abs(v) >= flingThreshold && Math.abs(dx) >= SWIPE.FLING_MIN) {
+    if (v > 0) {
       haptics(); pulse(leftZone); act('complete'); afterExecute('right');
-      return cleanup();
-    } else if (-x >= execThresholdR) {
+    } else {
       haptics(); pulse(rightZone); act('delete'); afterExecute('left');
-      return cleanup();
     }
+    return cleanup();
+  }
+  
+  // Distance-based execute
+  const execThresholdL = revealAmount > 0.3 ? EXEC_L() * 1.2 : EXEC_L();
+  const execThresholdR = revealAmount > 0.3 ? EXEC_R() * 1.2 : EXEC_R();
+  
+  if (x >= execThresholdL) {
+    haptics(); pulse(leftZone); act('complete'); afterExecute('right');
+    return cleanup();
+  } else if (-x >= execThresholdR) {
+    haptics(); pulse(rightZone); act('delete'); afterExecute('left');
+    return cleanup();
+  }
 
     // Snap open/closed
     const snapL = x >= OPEN_L() * THRESH.SNAP_FRAC ? OPEN_L() : 0;
@@ -336,6 +354,13 @@ function attachSwipe(wrap) {
 
 function patchCSSOnce() {
   if (document.getElementById('swipePerfPatch')) return;
+  
+  // CSS addition for pin feedback (add to your patchCSSOnce)
+  const additionalCSS = `
+    .swipe-wrap[style*="--pin-feedback"] .swipe-actions .action {
+      transform: scale(calc((0.85 + var(--reveal) * 0.25) * 1.2)) !important;
+    }
+  `;
   
   const style = document.createElement('style');
   style.id = 'swipePerfPatch';
