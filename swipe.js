@@ -13,6 +13,14 @@ const SWIPE = {
   VERTICAL_GUARD: 8,  // px vertical before we cancel for scrolling
 };
 
+// How far to travel before auto execute / snap
+const THRESH = {
+  SNAP_FRAC: 0.30,   // 0.50 = snap open when you’ve revealed half the zone
+  EXEC_FRAC: 1.2,   // proportion of the zone width required for execute
+  EXEC_ADD:  30,     // extra px on top of the fraction
+  EXEC_MIN:  140,    // never less than this many px to execute
+};
+
 export function enableSwipe() {
   if (!FLAGS.swipeGestures) return;
 
@@ -46,8 +54,9 @@ function attachSwipe(wrap) {
   const OPEN_L = () => leftZone.getBoundingClientRect().width;
   const OPEN_R = () => rightZone.getBoundingClientRect().width;
 
-  const EXEC_L = () => Math.max(110, OPEN_L() + 24);
-  const EXEC_R = () => Math.max(110, OPEN_R() + 24);
+const EXEC_L = () => Math.max(THRESH.EXEC_MIN, OPEN_L() * THRESH.EXEC_FRAC + THRESH.EXEC_ADD);
+  const EXEC_R = () => Math.max(THRESH.EXEC_MIN, OPEN_R() * THRESH.EXEC_FRAC + THRESH.EXEC_ADD);
+
 
 let unlockScroll = null;
   const preventScroll = (ev) => ev.preventDefault();
@@ -172,10 +181,10 @@ let unlockScroll = null;
 
     // --- Snap open/closed ---
     if (dir === 'right') {
-      const snap = x >= OPEN_L() / 2 ? OPEN_L() : 0;
+      const snap = x >= OPEN_L() * THRESH.SNAP_FRAC ? OPEN_L() : 0;
       animateTo(snap); openX = snap; setVisuals(snap);
     } else if (dir === 'left') {
-      const snap = -x >= OPEN_R() / 2 ? -OPEN_R() : 0;
+      const snap = -x >= OPEN_R() * THRESH.SNAP_FRAC ? -OPEN_R() : 0;
       animateTo(snap); openX = snap; setVisuals(snap);
     } else {
       animateTo(0); openX = 0; setVisuals(0);
