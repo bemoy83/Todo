@@ -249,8 +249,21 @@ function patchCSSOnce(){
   const style = document.createElement('style');
   style.id = 'swipePerfPatch';
   style.textContent = `
-    /* GPU hint + allow vertical panning without delaying horizontal pointer events */
-    .subtask { will-change: transform; touch-action: pan-y; }
+   /* GPU hint + allow vertical panning without delaying horizontal pointer events */
+   .subtask { will-change: transform; touch-action: pan-y; }
+   @media (prefers-reduced-motion: reduce) {
+     .subtask { transition: none !important; }
+   }
+   
+   /* --- added for scroll lock during an active swipe --- */
+   body.lock-scroll {
+     overflow: hidden;
+     overscroll-behavior: none;
+   }
+   /* When a swipe is active on this row, stop vertical scrolling from stealing it */
+   .swipe-wrap.swiping .subtask {
+     touch-action: none; /* overrides the pan-y above while swiping */
+   }
 
     /* Reveal-on-swipe visuals: circular buttons hidden at rest, scale in + slight swell */
     .swipe-actions { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; pointer-events: none; }
@@ -292,10 +305,6 @@ function patchCSSOnce(){
   `;
   document.head.appendChild(style);
   
-  body.lock-scroll {
-    overflow: hidden;
-    overscroll-behavior: none;
-  }
-  .swipe-wrap.swiping .subtask { touch-action: none; } /* belt & suspenders */
+ 
 
 }
