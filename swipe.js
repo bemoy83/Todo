@@ -12,10 +12,10 @@ const SWIPE = {
 };
 
 const THRESH = {
-  SNAP_FRAC: 0.30,
-  EXEC_FRAC: 1.5,
-  EXEC_ADD: 30,
-  EXEC_MIN: 140,
+  SNAP_FRAC: 0.5,
+  EXEC_FRAC: 1.15,
+  EXEC_ADD: 24,
+  EXEC_MIN: 110,
   PIN_HOLD_MS: 400,
   PIN_MIN_DIST: 30,
 };
