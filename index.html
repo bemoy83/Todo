@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Todo — drag, swipe & add</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <style>
+    :root{
+      --bg: #f1f3f5;
+      --card: #ffffff;
+      --text: #212529;
+      --muted: #6c757d;
+      --border: #e9ecef;
+      --radius: 12px;
+      --radius-sm: 10px;
+      --shadow: 0 4px 10px rgba(0,0,0,.08);
+      --shadow-strong: 0 10px 24px rgba(0,0,0,.14);
+      --green: #2f9e44;
+      --red: #e03131;
+      --amber: #f59f00;
+      --focus: 0 0 0 2px #00000010, 0 0 0 4px #74c0fc80;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+    /* Allow text selection & editing in form controls */
+    input, textarea { -webkit-user-select:text; user-select:text; -webkit-touch-callout:default; }
+
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:var(--bg); color:var(--text);}  
+
+    .app{ max-width:680px; margin:0 auto; padding: calc(var(--topbar-h) + 24px) 16px 140px; display:flex; flex-direction:column; gap:16px; position:relative; }
+
+    .task-card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition: transform 140ms ease-out, box-shadow 140ms ease-out; will-change: transform; }
+    .task-card.armed{ transform: scale(1.01); box-shadow: var(--shadow-strong); z-index:2; }
+
+    .card-row{ display:flex; gap:12px; align-items:center; padding:14px; min-height:60px; touch-action: pan-y; }
+    .card-handle,.sub-handle{ flex:0 0 auto; display:flex; align-items:center; justify-content:center; min-width:22px; min-height:44px;
+      border-radius:12px; border:1px solid var(--border); background:none; color:#6c757d; font-weight:800; cursor:grab; touch-action:none; -webkit-user-drag:none }
+    .card-handle:active,.sub-handle:active{ cursor:grabbing; }
+    .task-title{ font-weight:800; flex:1 }
+    .badge{ font-weight:700; color:white; background:var(--red); border:1px solid var(--border); min-width:32px; text-align:center; padding:6px 10px; border-radius:999px }
+
+    .subtask-list{ display:flex; flex-direction:column; gap:8px; padding:10px 14px 10px; background:#f8f9fa; border-top:1px dashed var(--border); }
+
+    /* ===== Swipe layout wrappers ===== */
+    .swipe-wrap{ position:relative; border-radius:var(--radius-sm); }
+    .swipe-actions{ position:absolute; inset:0; display:flex; align-items:stretch; justify-content:space-between; pointer-events:none; }
+    .swipe-actions .zone{ display:flex; align-items:stretch; gap:8px; padding:0 8px; }
+    .swipe-actions .zone.right{ justify-content:flex-end; }
+    .swipe-actions .action{ pointer-events:auto; border:none; min-width:64px; padding:0 12px; font-weight:800; color:white; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); }
+    .action.complete{ background:var(--green); }
+    .action.delete{ background:var(--red); }
+    .action.flag{ background:var(--amber); }
+
+    /* The sliding content itself is the existing .subtask row */
+    .subtask{
+      display:flex; gap:12px; align-items:center;
+      background:#fff; border:none; border-radius:var(--radius-sm);
+      min-height:56px; padding:10px 12px;
+      box-shadow:var(--shadow);
+      touch-action: pan-y; /* allow vertical scroll until we decide to capture */
+      transition: transform 140ms ease-out, box-shadow 140ms ease-out, opacity 140ms ease-out;
+      position:relative; will-change: transform;
+    }
+    .subtask.armed{ transform: scale(1.01); box-shadow: var(--shadow-strong); z-index:2; }
+
+    .sub-text{ flex:1; }
+    .sub-text.done{ text-decoration:line-through; color:var(--muted); }
+    .flag-dot{ width:10px; height:10px; border-radius:999px; background:var(--amber); }
+
+    .drag-layer{ position:absolute; inset:0; pointer-events:none; z-index:999; }
+    .drag-ghost{
+      position:absolute; top:0; /* left is set dynamically */
+      transform: translate3d(0,0,0);
+      width:var(--ghost-w, auto);
+      height:var(--ghost-h, auto);
+      border-radius:var(--radius-sm);
+      opacity:0.98;
+      box-shadow: var(--shadow-strong);
+      visibility:hidden; /* prevent flash before first position */
+    }
+
+    .placeholder{ border:none; border-radius:10px; background:transparent; margin:0; padding:0; }
+
+    body.lock-scroll { overflow: hidden; touch-action: none; }
+
+    /* ===== Empty state ===== */
+    .empty{
+      display:flex; flex-direction:column; align-items:center; gap:8px; padding:32px; 
+      color:var(--muted); border:2px dashed var(--border); border-radius:var(--radius);
+      background: #fff;
+    }
+
+    /* ===== Add bars ===== */
+    .add-bar{
+      position:fixed; left:0; right:0; bottom:0; z-index:1000;
+      background:rgba(255,255,255,.92); backdrop-filter:saturate(180%) blur(10px);
+      border-top:1px solid var(--border);
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+      display:flex; justify-content:center;
+    }
+    .add-inner{ width:100%; max-width:680px; display:flex; gap:8px; }
+    .add-input{ flex:1; min-height:44px; border:1px solid var(--border); border-radius:999px; padding:10px 12px; font-size:16px; background:#fff; }
+    .add-input:focus{ outline:none; box-shadow: var(--focus); }
+    .add-btn{ min-height:44px; min-width:44px; padding:0 0px; border:1px solid var(--border); border-radius:999px; font-weight:800; background:#f1f3f5; color:#6c757d; box-shadow:var(--shadow); }
+    .add-btn:active{ transform: translateY(1px); }
+
+    /* ===== Inline add-subtask row ===== */
+    .add-subtask-row{ display:flex; gap:8px; align-items:center; padding:8px 0 2px; }
+    .add-subtask-row .add-sub-input{ flex:1; min-height:40px; border:1px dashed var(--border); border-radius:999px; padding:8px 12px; font-size:16px; background:#fff; }
+    .add-subtask-row .add-sub-input:focus{ outline:none; box-shadow: var(--focus); border-style:solid; }
+    .add-subtask-row .add-sub-btn{ min-height:32px; min-width:32px; padding:0 0px; border:1px solid var(--border); border-radius:999px; font-weight:800; background:#f1f3f5; color:#6c757d; box-shadow:var(--shadow); }
+
+    /* ===== Top bar & menu ===== */
+    .topbar{ position:sticky; top:0; z-index:1100; display:flex; align-items:center; gap:12px; height:var(--topbar-h); padding: max(8px, env(safe-area-inset-top)) 12px 8px; background: rgba(255,255,255,.92); backdrop-filter:saturate(180%) blur(10px); border-bottom:1px solid var(--border); }
+    .menu-btn{ appearance:none; border:1px solid var(--border); background:#fff; border-radius:12px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; box-shadow:var(--shadow); }
+    .menu-btn:active{ transform: translateY(1px); }
+    .topbar-title{ font-weight:800; font-size:18px; }
+
+    .menu{ position:fixed; top: calc(env(safe-area-inset-top) + 12px + var(--topbar-h)); right: 12px; display:flex; flex-direction:column; gap:8px; padding:8px; background:transparent; z-index:1200; opacity:0; transform: translateY(-6px) scale(.98); pointer-events:none; transition: opacity 120ms ease, transform 120ms ease; }
+    .menu.open{ opacity:1; transform: translateY(0) scale(1); pointer-events:auto; }
+    .menu-item{ display:flex; align-items:center; gap:10px; border:1px solid var(--border); background:#fff; border-radius:12px; padding:12px 14px; font-weight:700; box-shadow:var(--shadow); }
+    .menu-item input[type="checkbox"]{ width:18px; height:18px; }
+    .menu-item.danger{ color:var(--red); background:#fff5f5; border-color:#ffe3e3; }
+
+    :root{ --topbar-h: 56px; }
+
+    @media (prefers-reduced-motion: reduce){
+      .task-card, .task-card.armed, .subtask, .subtask.armed { transition:none !important; transform:none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <button id="menuBtn" class="menu-btn" aria-label="Open menu" aria-haspopup="menu" aria-expanded="false" aria-controls="appMenu">☰</button>
+    <div class="topbar-title">Tasks</div>
+  </header>
+  <nav id="appMenu" class="menu" role="menu" aria-hidden="true">
+    <button class="menu-item" data-menu="export" role="menuitem">Export backup</button>
+    <button class="menu-item" data-menu="import" role="menuitem">Import backup…</button>
+    <label class="menu-item" role="menuitemcheckbox" aria-checked="true"><input type="checkbox" id="toggleSwipe" /><span>Swipe gestures</span></label>
+    <button class="menu-item danger" data-menu="clear" role="menuitem">Clear all data</button>
+  </nav>
+  <input type="file" id="importFile" accept="application/json" hidden />
+  <main class="app" id="app">
+    <div id="dragLayer" class="drag-layer" aria-hidden="true"></div>
+  </main>
+
+  <!-- Add main task bar -->
+  <form id="addMainForm" class="add-bar" autocomplete="off">
+    <div class="add-inner">
+      <input id="newTaskTitle" class="add-input" name="title" type="text" inputmode="text" placeholder="Add a task…" aria-label="Add a task" maxlength="180" />
+      <button class="add-btn" type="submit" aria-label="Add task">Add</button>
+    </div>
+  </form>
+  
+<script type="module" src="main.js"></script>
+
+</body>
+</html>
