@@ -380,7 +380,7 @@ function patchCSSOnce() {
     }
     
     .swipe-actions .action.complete { --bg: #16a34a; --fg: white; }
-    .swipe-actions .action.flag { --bg: #f59e0b; --fg: white; }
+    .swipe-actions .action.more { --bg: #6b7280; --fg: white; }
     .swipe-actions .action.delete { --bg: #ef4444; --fg: white; }
     
     @media (prefers-reduced-motion: reduce) {
