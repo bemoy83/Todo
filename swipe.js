@@ -253,6 +253,7 @@ function attachSwipe(wrap) {
   }
 
   function performAction(actionName) {
+    console.log('performAction called with:', actionName); // Debug
     const mainId = wrap.closest('.task-card').dataset.id;
     const subId = row.dataset.id;
     const task = model.find(x => x.id === mainId);
@@ -267,17 +268,22 @@ function attachSwipe(wrap) {
     switch (actionName) {
       case 'delete':
         task.subtasks.splice(subtaskIndex, 1);
+        renderAll();
+        bootBehaviors();
         break;
       case 'complete':
         subtask.done = !subtask.done;
+        renderAll();
+        bootBehaviors();
         break;
-      case 'flag':
-        subtask.flagged = !subtask.flagged;
+      case 'more':
+        console.log('More action triggered, calling showMoreDropdown'); // Debug
+        const moreButton = rightZone.querySelector('.action.more');
+        showMoreDropdown(wrap, moreButton);
         break;
+      default:
+        console.log('Unknown action:', actionName);
     }
-    
-    renderAll();
-    bootBehaviors();
   }
 
   function closeDrawer() {
@@ -294,13 +300,16 @@ function attachSwipe(wrap) {
   row.addEventListener('pointerdown', onDown, { passive: true });
   row.addEventListener('click', closeDrawer);
   
-  actions.addEventListener('click', (e) => {
+actions.addEventListener('click', (e) => {
     const button = e.target.closest('.action');
     if (!button) return;
+    console.log('Action button clicked:', button.dataset.act); // Debug
     performAction(button.dataset.act);
-    closeDrawer();
+    if (button.dataset.act !== 'more') {
+      closeDrawer(); // Don't close drawer for more button
+    }
   });
-
+  
   // Close drawer when clicking outside
   document.addEventListener('pointerdown', (e) => {
     if (!wrap.contains(e.target)) closeDrawer();
