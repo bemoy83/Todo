@@ -1,22 +1,14 @@
-// swipe.js — simplified swipe gestures with reliable hold-to-pin
-// Copy this file to replace your existing swipe.js
+// swipe.js — ultra-simplified swipe gestures
+// Copy this to replace your existing swipe.js
 import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture } from './core.js';
 
-// Simplified tuning constants
+// Ultra-simplified tuning constants
 const SWIPE = {
-  FLING_VELOCITY: 0.6,     // Minimum velocity for fling
-  FLING_MIN_DISTANCE: 20,  // Minimum distance for fling
-  FLING_TIME_LIMIT: 80,    // Max time since last move for fling
-  HOLD_TIME: 250,          // Time to register as hold (was 350-400)
-  HOLD_TOLERANCE: 8,       // Max movement during hold (pixels)
+  HOLD_TIME: 1000,         // 1 second to register as hold (deliberate)
+  MIN_INTENT_DISTANCE: 40, // Minimum distance to confirm intentional swipe
   SNAP_DURATION: 120,
   EXEC_DURATION: 120,
   VERTICAL_GUARD: 15,
-};
-
-const THRESH = {
-  SNAP_FRACTION: 0.25,     // When to snap open vs closed
-  EXEC_DISTANCE: 80,       // Distance to auto-execute (simple fixed value)
 };
 
 export function enableSwipe() {
@@ -46,7 +38,6 @@ function attachSwipe(wrap) {
   let openX = 0; // Current open position
   let tracking = false, captured = false;
   let holdTimer = null, isHolding = false;
-  let velocity = 0, lastMoveTime = 0, lastX = 0;
   let scrollYAtStart = 0;
   let unlockScroll = null;
 
@@ -99,17 +90,16 @@ function attachSwipe(wrap) {
     return x;
   }
 
-  // Hold detection
-  function startHoldTimer(startPos) {
+  // Hold detection - much simpler
+  function startHoldTimer() {
     clearHoldTimer();
+    console.log('Starting hold timer for 1 second...');
     holdTimer = setTimeout(() => {
-      // Check if user hasn't moved too much
-      const moveDistance = Math.abs(currentX - startPos);
-      if (moveDistance <= SWIPE.HOLD_TOLERANCE && captured) {
+      if (captured && tracking) {
         isHolding = true;
         wrap.classList.add('held');
-        haptic();
-        console.log('Hold detected!');
+        wrap.style.setProperty('--hold-feedback', '1');
+        console.log('Hold detected after 1 second!');
       }
     }, SWIPE.HOLD_TIME);
   }
@@ -144,16 +134,13 @@ function attachSwipe(wrap) {
     const p = pt(e);
     startX = p.x;
     startY = p.y;
-    currentX = startX;
+    currentX = p.x;
     
     tracking = true;
     captured = false;
     isHolding = false;
     gesture.swipe = true;
     
-    velocity = 0;
-    lastX = startX;
-    lastMoveTime = performance.now();
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
 
     wrap.classList.add('swiping');
@@ -172,14 +159,6 @@ function attachSwipe(wrap) {
     const dy = p.y - startY;
     
     currentX = p.x;
-    const now = performance.now();
-    
-    // Update velocity (simple calculation)
-    if (now - lastMoveTime > 0) {
-      velocity = (p.x - lastX) / (now - lastMoveTime);
-      lastX = p.x;
-      lastMoveTime = now;
-    }
 
     // Capture decision
     if (!captured) {
@@ -190,27 +169,21 @@ function attachSwipe(wrap) {
         return;
       }
       
-      if (Math.abs(dx) > Math.max(10, Math.abs(dy))) {
+      // Check if we've moved enough to be intentional
+      if (Math.abs(dx) >= SWIPE.MIN_INTENT_DISTANCE) {
         captured = true;
         lockScroll();
         e.preventDefault();
         
-        // Start hold timer once we've captured
-        startHoldTimer(currentX);
+        // Start the 1-second hold timer
+        startHoldTimer();
+        console.log('Swipe captured at', Math.abs(dx), 'px - hold timer started');
       } else {
         return;
       }
     }
 
     e.preventDefault();
-    
-    // If we're moving too much, cancel hold
-    if (!isHolding) {
-      const moveFromStart = Math.abs(currentX - startX);
-      if (moveFromStart > SWIPE.HOLD_TOLERANCE) {
-        clearHoldTimer();
-      }
-    }
     
     const newX = applyResistance(openX + dx);
     setTransform(newX);
@@ -228,66 +201,26 @@ function attachSwipe(wrap) {
     }
     
     const dx = currentX - startX;
-    const finalX = openX + dx;
-    const timeSinceLastMove = performance.now() - lastMoveTime;
-    const isFreshVelocity = timeSinceLastMove <= SWIPE.FLING_TIME_LIMIT;
     
-    // HOLD: Keep drawer open at appropriate position
+    // HOLD: User held for 1 second - snap open for action selection
     if (isHolding) {
-      console.log('Hold completed - keeping drawer open');
-      const targetX = finalX > 0 ? getLeftWidth() : -getRightWidth();
+      console.log('Hold completed - snapping open for action selection');
+      const targetX = dx > 0 ? getLeftWidth() : -getRightWidth();
       animateTo(targetX);
       openX = targetX;
       updateVisuals(targetX);
+      wrap.style.removeProperty('--hold-feedback');
       cleanup();
       return;
     }
     
-    // FLING: Immediate execution
-    if (isFreshVelocity && 
-        Math.abs(velocity) >= SWIPE.FLING_VELOCITY && 
-        Math.abs(dx) >= SWIPE.FLING_MIN_DISTANCE) {
-      
-      console.log('Fling detected - executing');
-      if (velocity > 0) {
-        executeAction('complete', leftZone);
-      } else {
-        executeAction('delete', rightZone);
-      }
-      return;
+    // SWIPE: Released before 1 second - execute immediately
+    console.log('Quick swipe - executing based on direction, distance:', Math.abs(dx));
+    if (dx > 0) {
+      executeAction('complete', leftZone);
+    } else {
+      executeAction('delete', rightZone);
     }
-    
-    // SWIPE: Distance-based execution or snap
-    if (Math.abs(finalX) >= THRESH.EXEC_DISTANCE) {
-      console.log('Distance execution');
-      if (finalX > 0) {
-        executeAction('complete', leftZone);
-      } else {
-        executeAction('delete', rightZone);
-      }
-      return;
-    }
-    
-    // SNAP: Open or close based on reveal amount
-    const leftWidth = getLeftWidth();
-    const rightWidth = getRightWidth();
-    let snapTarget = 0;
-    
-    if (finalX > 0 && finalX >= leftWidth * THRESH.SNAP_FRACTION) {
-      snapTarget = leftWidth;
-    } else if (finalX < 0 && Math.abs(finalX) >= rightWidth * THRESH.SNAP_FRACTION) {
-      snapTarget = -rightWidth;
-    }
-    
-    animateTo(snapTarget);
-    openX = snapTarget;
-    updateVisuals(snapTarget);
-    
-    if (snapTarget === 0) {
-      wrap.classList.remove('swiping', 'held');
-    }
-    
-    cleanup();
   }
 
   function executeAction(actionName, zone) {
@@ -375,10 +308,10 @@ function attachSwipe(wrap) {
 }
 
 function patchCSSOnce() {
-  if (document.getElementById('swipePatch')) return;
+  if (document.getElementById('swipeSimplePatch')) return;
   
   const style = document.createElement('style');
-  style.id = 'swipePatch';
+  style.id = 'swipeSimplePatch';
   style.textContent = `
     .subtask { 
       will-change: transform; 
