@@ -1,23 +1,22 @@
-// swipe.js — optimized ESM: swipe gestures with hold-to-pin
+// swipe.js — simplified swipe gestures with reliable hold-to-pin
+// Copy this file to replace your existing swipe.js
 import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture } from './core.js';
 
-// Tuning constants
+// Simplified tuning constants
 const SWIPE = {
-  FLING_VX: 0.6,        // Was 0.95 - much easier now
-  FLING_MIN: 20,        // Was 34 - shorter swipes work
-  FLING_EXPIRE: 80,     // Was 60 - bit more forgiving
-  SNAP_MS: 120,
-  EXEC_MS: 120,
-  VERTICAL_GUARD: 15,   // Was 10 - steadier hands needed
+  FLING_VELOCITY: 0.6,     // Minimum velocity for fling
+  FLING_MIN_DISTANCE: 20,  // Minimum distance for fling
+  FLING_TIME_LIMIT: 80,    // Max time since last move for fling
+  HOLD_TIME: 250,          // Time to register as hold (was 350-400)
+  HOLD_TOLERANCE: 8,       // Max movement during hold (pixels)
+  SNAP_DURATION: 120,
+  EXEC_DURATION: 120,
+  VERTICAL_GUARD: 15,
 };
 
 const THRESH = {
-  SNAP_FRAC: 0.20,      // Was 0.30 - snap sooner
-  EXEC_FRAC: 0.8,       // Was 1.5 - WAY lower!
-  EXEC_ADD: 15,         // Was 30 - less extra distance
-  EXEC_MIN: 60,         // Was 140 - this was killing you!
-  PIN_HOLD_MS: 350,     // Was 400 - slightly faster
-  PIN_MIN_DIST: 20,     // Was 30 - easier to pin
+  SNAP_FRACTION: 0.25,     // When to snap open vs closed
+  EXEC_DISTANCE: 80,       // Distance to auto-execute (simple fixed value)
 };
 
 export function enableSwipe() {
@@ -26,7 +25,7 @@ export function enableSwipe() {
   patchCSSOnce();
   document.querySelectorAll('.swipe-wrap').forEach(attachSwipe);
   
-  // Global click prevention (once per page)
+  // Global click prevention
   const app = document.getElementById('app') || document;
   if (!app._swipeClickBound) {
     app.addEventListener('click', (e) => {
@@ -42,26 +41,26 @@ function attachSwipe(wrap) {
   const leftZone = actions.querySelector('.zone.left');
   const rightZone = actions.querySelector('.zone.right');
 
-  // State
-  let startX = 0, startY = 0, dx = 0, dy = 0, openX = 0;
-  let tracking = false, captured = false, lastT = 0, lastX = 0, vx = 0;
-  let scrollYAtDown = 0, pinTimer = null, pinned = false, lastMoveTime = 0;
+  // Simplified state
+  let startX = 0, startY = 0, currentX = 0;
+  let openX = 0; // Current open position
+  let tracking = false, captured = false;
+  let holdTimer = null, isHolding = false;
+  let velocity = 0, lastMoveTime = 0, lastX = 0;
+  let scrollYAtStart = 0;
   let unlockScroll = null;
 
   // Helper functions
-  const OPEN_L = () => leftZone.getBoundingClientRect().width;
-  const OPEN_R = () => rightZone.getBoundingClientRect().width;
-  const EXEC_L = () => Math.max(THRESH.EXEC_MIN, OPEN_L() * THRESH.EXEC_FRAC + THRESH.EXEC_ADD);
-  const EXEC_R = () => Math.max(THRESH.EXEC_MIN, OPEN_R() * THRESH.EXEC_FRAC + THRESH.EXEC_ADD);
-  
-  const setX = (x) => row.style.transform = `translate3d(${Math.round(x)}px,0,0)`;
-  const haptics = () => navigator.vibrate?.(8);
+  const getLeftWidth = () => leftZone.getBoundingClientRect().width;
+  const getRightWidth = () => rightZone.getBoundingClientRect().width;
+  const setTransform = (x) => row.style.transform = `translate3d(${Math.round(x)}px,0,0)`;
+  const haptic = () => navigator.vibrate?.(8);
   const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function lockScroll() {
     if (unlockScroll) return;
     document.body.classList.add('lock-scroll');
-    const preventScroll = (ev) => ev.preventDefault();
+    const preventScroll = (e) => e.preventDefault();
     window.addEventListener('touchmove', preventScroll, { passive: false });
     window.addEventListener('wheel', preventScroll, { passive: false });
     unlockScroll = () => {
@@ -76,84 +75,63 @@ function attachSwipe(wrap) {
     gesture.swipe = false;
     tracking = false;
     captured = false;
-    dx = dy = 0;
-    setVisuals(openX);
-    if (openX === 0) wrap.classList.remove('swiping', 'pinned');
+    clearHoldTimer();
+    isHolding = false;
     unlockScroll?.();
   }
 
   function reset() {
-    setX(0);
     openX = 0;
+    setTransform(0);
     row.style.opacity = 1;
-    setVisuals(0);
-    wrap.classList.remove('swiping', 'pinned');
+    updateVisuals(0);
+    wrap.classList.remove('swiping', 'held');
+    cleanup();
   }
 
-  // Resistance when over-pulling
-  function resist(x) {
-    const maxL = OPEN_L() * 1.25;
-    const maxR = OPEN_R() * 1.25;
-    if (x > maxL) return maxL + (x - maxL) * 0.35;
-    if (x < -maxR) return -maxR + (x + maxR) * 0.35;
+  // Resistance for over-pulling
+  function applyResistance(x) {
+    const maxLeft = getLeftWidth() * 1.3;
+    const maxRight = getRightWidth() * 1.3;
+    
+    if (x > maxLeft) return maxLeft + (x - maxLeft) * 0.3;
+    if (x < -maxRight) return -maxRight + (x + maxRight) * 0.3;
     return x;
   }
 
-  // Pin functionality
-  function clearPin() {
-    if (pinTimer) {
-      clearTimeout(pinTimer);
-      pinTimer = null;
+  // Hold detection
+  function startHoldTimer(startPos) {
+    clearHoldTimer();
+    holdTimer = setTimeout(() => {
+      // Check if user hasn't moved too much
+      const moveDistance = Math.abs(currentX - startPos);
+      if (moveDistance <= SWIPE.HOLD_TOLERANCE && captured) {
+        isHolding = true;
+        wrap.classList.add('held');
+        haptic();
+        console.log('Hold detected!');
+      }
+    }, SWIPE.HOLD_TIME);
+  }
+
+  function clearHoldTimer() {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
     }
   }
 
-  // Enhanced schedulePin with better timing
-  function schedulePin() {
-    clearPin();
-    lastMoveTime = performance.now();
+  // Visual feedback
+  function updateVisuals(x) {
+    const leftReveal = clamp(x / Math.max(getLeftWidth(), 1), 0, 1);
+    const rightReveal = clamp(-x / Math.max(getRightWidth(), 1), 0, 1);
     
-    pinTimer = setTimeout(() => {
-      const timeSinceMove = performance.now() - lastMoveTime;
-      
-      // More lenient timing - if user has been still for 80% of hold time
-      if (timeSinceMove >= THRESH.PIN_HOLD_MS * 0.7) { // Was 0.8, now 0.7
-        tryPin();
-      } else {
-        console.log('Pin failed - user moved too recently');
-      }
-    }, THRESH.PIN_HOLD_MS);
+    leftZone.style.setProperty('--reveal', leftReveal.toFixed(3));
+    rightZone.style.setProperty('--reveal', rightReveal.toFixed(3));
   }
 
-  // Enhanced tryPin function with better feedback
-  function tryPin() {
-    if (!captured) return;
-    const x = openX + dx;
-    if (Math.abs(x) < THRESH.PIN_MIN_DIST) return;
-  
-    console.log('PINNED!'); // Debug - you should see this
-    pinned = true;
-    const target = x > 0 ? OPEN_L() : -OPEN_R();
-    animateTo(target);
-    openX = target;
-    haptics();
-    pulse(x > 0 ? leftZone : rightZone);
-    wrap.classList.add('pinned');
-    
-    // Extra visual feedback
-    wrap.style.setProperty('--pin-feedback', '1');
-    setTimeout(() => wrap.style.removeProperty('--pin-feedback'), 200);
-  }
-
-  // Visual updates
-  function setVisuals(x) {
-    const l = clamp(x / Math.max(OPEN_L(), 1), 0, 1) || 0;
-    const r = clamp(-x / Math.max(OPEN_R(), 1), 0, 1) || 0;
-    leftZone.style.setProperty('--reveal', l.toFixed(3));
-    rightZone.style.setProperty('--reveal', r.toFixed(3));
-  }
-
-  function pulse(zone) {
-    zone.style.setProperty('--pulse', '1.12');
+  function pulseZone(zone) {
+    zone.style.setProperty('--pulse', '1.15');
     setTimeout(() => zone.style.setProperty('--pulse', '1'), 180);
   }
 
@@ -163,250 +141,315 @@ function attachSwipe(wrap) {
         e.target.closest('.sub-handle') || 
         e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
 
-    pinned = false;
-    clearPin();
-
     const p = pt(e);
     startX = p.x;
     startY = p.y;
-    dx = dy = 0;
+    currentX = startX;
+    
     tracking = true;
     captured = false;
+    isHolding = false;
     gesture.swipe = true;
-    lastT = performance.now();
+    
+    velocity = 0;
     lastX = startX;
-    vx = 0;
-    scrollYAtDown = (document.scrollingElement || document.documentElement).scrollTop || 0;
+    lastMoveTime = performance.now();
+    scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
 
     wrap.classList.add('swiping');
-    setVisuals(0);
-
+    
     try { row.setPointerCapture?.(e.pointerId); } catch {}
     window.addEventListener('pointermove', onMove, { passive: false });
     window.addEventListener('pointerup', onUp, { once: true });
   }
 
- function onMove(e) {
- if (!tracking) return;
- 
- const samples = e.getCoalescedEvents?.() || [e];
- const p = pt(samples[samples.length - 1]);
- dx = p.x - startX;
- dy = p.y - startY;
- lastMoveTime = performance.now();
- 
-    // Update velocity
+  function onMove(e) {
+    if (!tracking) return;
+    
+    const samples = e.getCoalescedEvents?.() || [e];
+    const p = pt(samples[samples.length - 1]);
+    const dx = p.x - startX;
+    const dy = p.y - startY;
+    
+    currentX = p.x;
     const now = performance.now();
-    const dt = now - lastT;
-    if (dt > 0) {
-      vx = vx * 0.75 + ((p.x - lastX) / dt) * 0.25;
-      lastT = now;
+    
+    // Update velocity (simple calculation)
+    if (now - lastMoveTime > 0) {
+      velocity = (p.x - lastX) / (now - lastMoveTime);
       lastX = p.x;
+      lastMoveTime = now;
     }
 
     // Capture decision
     if (!captured) {
-      const scrolled = Math.abs(((document.scrollingElement || document.documentElement).scrollTop || 0) - scrollYAtDown) > 2;
+      const scrolled = Math.abs(((document.scrollingElement || document.documentElement).scrollTop || 0) - scrollYAtStart) > 2;
+      
       if (Math.abs(dy) > SWIPE.VERTICAL_GUARD || scrolled) {
         cleanup();
         return;
       }
+      
       if (Math.abs(dx) > Math.max(10, Math.abs(dy))) {
         captured = true;
         lockScroll();
         e.preventDefault();
-      } else return;
-    }
-
-    e.preventDefault();
-    clearPin();
-    
-    const x = resist(openX + dx);
-    setX(x);
-    setVisuals(x);
-    
-// Schedule pin if in reasonable range
-      const inPinRange = Math.abs(x) >= THRESH.PIN_MIN_DIST && 
-                         Math.abs(x) <= Math.max(OPEN_L(), OPEN_R()) * 0.8;
-      
-      if (inPinRange) {
-        console.log('Scheduling pin...', Math.abs(x)); // Debug
-        schedulePin();
+        
+        // Start hold timer once we've captured
+        startHoldTimer(currentX);
+      } else {
+        return;
       }
     }
 
-function onUp() {
-  window.removeEventListener('pointermove', onMove);
-  tracking = false;
-  clearPin();
-  
-  // CRITICAL: Check pinned state FIRST, before any execution logic
-  if (pinned) {
-    gesture.swipe = false;
-    unlockScroll?.();
-    return; // Exit early - no execution when pinned
-  }
-  
-  const x = openX + dx;
-  const revealAmount = Math.max(Math.abs(x) / OPEN_L(), Math.abs(x) / OPEN_R());
-  
-  // Fling to execute
-  const now = performance.now();
-  const fresh = (now - lastT) <= SWIPE.FLING_EXPIRE;
-  const v = fresh ? vx : 0;
-  const flingThreshold = revealAmount > 0.3 ? SWIPE.FLING_VX * 1.5 : SWIPE.FLING_VX;
-  
-  if (captured && Math.abs(v) >= flingThreshold && Math.abs(dx) >= SWIPE.FLING_MIN) {
-    if (v > 0) {
-      haptics(); pulse(leftZone); act('complete'); afterExecute('right');
-    } else {
-      haptics(); pulse(rightZone); act('delete'); afterExecute('left');
+    e.preventDefault();
+    
+    // If we're moving too much, cancel hold
+    if (!isHolding) {
+      const moveFromStart = Math.abs(currentX - startX);
+      if (moveFromStart > SWIPE.HOLD_TOLERANCE) {
+        clearHoldTimer();
+      }
     }
-    return cleanup();
-  }
-  
-  // Distance-based execute
-  const execThresholdL = revealAmount > 0.3 ? EXEC_L() * 1.2 : EXEC_L();
-  const execThresholdR = revealAmount > 0.3 ? EXEC_R() * 1.2 : EXEC_R();
-  
-  if (x >= execThresholdL) {
-    haptics(); pulse(leftZone); act('complete'); afterExecute('right');
-    return cleanup();
-  } else if (-x >= execThresholdR) {
-    haptics(); pulse(rightZone); act('delete'); afterExecute('left');
-    return cleanup();
+    
+    const newX = applyResistance(openX + dx);
+    setTransform(newX);
+    updateVisuals(newX);
   }
 
-    // Snap open/closed
-    const snapL = x >= OPEN_L() * THRESH.SNAP_FRAC ? OPEN_L() : 0;
-    const snapR = -x >= OPEN_R() * THRESH.SNAP_FRAC ? -OPEN_R() : 0;
-    const snap = x > 0 ? snapL : (x < 0 ? snapR : 0);
+  function onUp() {
+    window.removeEventListener('pointermove', onMove);
+    tracking = false;
+    clearHoldTimer();
     
-    animateTo(snap);
-    openX = snap;
-    setVisuals(snap);
+    if (!captured) {
+      cleanup();
+      return;
+    }
     
-    gesture.swipe = false;
-    unlockScroll?.();
-    if (openX === 0) wrap.classList.remove('swiping', 'pinned');
+    const dx = currentX - startX;
+    const finalX = openX + dx;
+    const timeSinceLastMove = performance.now() - lastMoveTime;
+    const isFreshVelocity = timeSinceLastMove <= SWIPE.FLING_TIME_LIMIT;
+    
+    // HOLD: Keep drawer open at appropriate position
+    if (isHolding) {
+      console.log('Hold completed - keeping drawer open');
+      const targetX = finalX > 0 ? getLeftWidth() : -getRightWidth();
+      animateTo(targetX);
+      openX = targetX;
+      updateVisuals(targetX);
+      cleanup();
+      return;
+    }
+    
+    // FLING: Immediate execution
+    if (isFreshVelocity && 
+        Math.abs(velocity) >= SWIPE.FLING_VELOCITY && 
+        Math.abs(dx) >= SWIPE.FLING_MIN_DISTANCE) {
+      
+      console.log('Fling detected - executing');
+      if (velocity > 0) {
+        executeAction('complete', leftZone);
+      } else {
+        executeAction('delete', rightZone);
+      }
+      return;
+    }
+    
+    // SWIPE: Distance-based execution or snap
+    if (Math.abs(finalX) >= THRESH.EXEC_DISTANCE) {
+      console.log('Distance execution');
+      if (finalX > 0) {
+        executeAction('complete', leftZone);
+      } else {
+        executeAction('delete', rightZone);
+      }
+      return;
+    }
+    
+    // SNAP: Open or close based on reveal amount
+    const leftWidth = getLeftWidth();
+    const rightWidth = getRightWidth();
+    let snapTarget = 0;
+    
+    if (finalX > 0 && finalX >= leftWidth * THRESH.SNAP_FRACTION) {
+      snapTarget = leftWidth;
+    } else if (finalX < 0 && Math.abs(finalX) >= rightWidth * THRESH.SNAP_FRACTION) {
+      snapTarget = -rightWidth;
+    }
+    
+    animateTo(snapTarget);
+    openX = snapTarget;
+    updateVisuals(snapTarget);
+    
+    if (snapTarget === 0) {
+      wrap.classList.remove('swiping', 'held');
+    }
+    
+    cleanup();
   }
 
-  function animateTo(x) {
-    const duration = prefersReducedMotion() ? Math.max(80, SWIPE.SNAP_MS - 40) : SWIPE.SNAP_MS;
-    row.style.transition = `transform ${duration}ms ${prefersReducedMotion() ? 'linear' : 'ease'}`;
-    setX(x);
+  function executeAction(actionName, zone) {
+    haptic();
+    pulseZone(zone);
+    performAction(actionName);
+    afterExecute(actionName === 'complete' ? 'right' : 'left');
+    cleanup();
+  }
+
+  function animateTo(targetX) {
+    const duration = prefersReducedMotion() ? 80 : SWIPE.SNAP_DURATION;
+    row.style.transition = `transform ${duration}ms ease`;
+    setTransform(targetX);
     row.addEventListener('transitionend', () => row.style.transition = '', { once: true });
   }
 
-  function afterExecute(side) {
-    const dur = prefersReducedMotion() ? Math.max(80, SWIPE.EXEC_MS - 20) : SWIPE.EXEC_MS;
-    row.style.transition = `transform ${dur}ms ease, opacity ${dur}ms ease`;
-    setX(side === 'right' ? EXEC_L() : -EXEC_R());
+  function afterExecute(direction) {
+    const duration = prefersReducedMotion() ? 80 : SWIPE.EXEC_DURATION;
+    const distance = direction === 'right' ? getLeftWidth() * 1.2 : -getRightWidth() * 1.2;
+    
+    row.style.transition = `transform ${duration}ms ease, opacity ${duration}ms ease`;
+    setTransform(distance);
     row.style.opacity = 0;
+    
     setTimeout(() => {
       row.style.transition = '';
       reset();
-    }, dur + 10);
+    }, duration + 10);
   }
 
-  function act(name) {
+  function performAction(actionName) {
     const mainId = wrap.closest('.task-card').dataset.id;
     const subId = row.dataset.id;
-    const m = model.find(x => x.id === mainId);
-    if (!m) return;
-    const i = m.subtasks.findIndex(s => s.id === subId);
-    if (i < 0) return;
+    const task = model.find(x => x.id === mainId);
     
-    const item = m.subtasks[i];
-    if (name === 'delete') m.subtasks.splice(i, 1);
-    else if (name === 'complete') item.done = !item.done;
-    else if (name === 'flag') item.flagged = !item.flagged;
+    if (!task) return;
+    
+    const subtaskIndex = task.subtasks.findIndex(s => s.id === subId);
+    if (subtaskIndex < 0) return;
+    
+    const subtask = task.subtasks[subtaskIndex];
+    
+    switch (actionName) {
+      case 'delete':
+        task.subtasks.splice(subtaskIndex, 1);
+        break;
+      case 'complete':
+        subtask.done = !subtask.done;
+        break;
+      case 'flag':
+        subtask.flagged = !subtask.flagged;
+        break;
+    }
     
     renderAll();
     bootBehaviors();
   }
 
-  function closeActions() {
+  function closeDrawer() {
     if (openX !== 0) {
       animateTo(0);
       openX = 0;
-      setVisuals(0);
-      wrap.classList.remove('swiping', 'pinned');
-      pinned = false;
+      updateVisuals(0);
+      wrap.classList.remove('swiping', 'held');
+      isHolding = false;
     }
   }
 
   // Event bindings
   row.addEventListener('pointerdown', onDown, { passive: true });
-  row.addEventListener('click', closeActions);
+  row.addEventListener('click', closeDrawer);
   
   actions.addEventListener('click', (e) => {
-    const btn = e.target.closest('.action');
-    if (!btn) return;
-    act(btn.dataset.act);
-    closeActions();
+    const button = e.target.closest('.action');
+    if (!button) return;
+    performAction(button.dataset.act);
+    closeDrawer();
   });
 
+  // Close drawer when clicking outside
   document.addEventListener('pointerdown', (e) => {
-    if (!wrap.contains(e.target)) closeActions();
+    if (!wrap.contains(e.target)) closeDrawer();
   });
 }
 
 function patchCSSOnce() {
-  if (document.getElementById('swipePerfPatch')) return;
-  
-  // CSS addition for pin feedback (add to your patchCSSOnce)
-  const additionalCSS = `
-    .swipe-wrap[style*="--pin-feedback"] .swipe-actions .action {
-      transform: scale(calc((0.85 + var(--reveal) * 0.25) * 1.2)) !important;
-    }
-  `;
+  if (document.getElementById('swipePatch')) return;
   
   const style = document.createElement('style');
-  style.id = 'swipePerfPatch';
+  style.id = 'swipePatch';
   style.textContent = `
-    .subtask { will-change: transform; touch-action: pan-y; }
-    .swipe-wrap.swiping .subtask { touch-action: none; }
+    .subtask { 
+      will-change: transform; 
+      touch-action: pan-y; 
+    }
     
-    body.lock-scroll { overflow: hidden; overscroll-behavior: none; }
+    .swipe-wrap.swiping .subtask { 
+      touch-action: none; 
+    }
+    
+    body.lock-scroll { 
+      overflow: hidden; 
+      overscroll-behavior: none; 
+    }
     
     .swipe-actions { 
-      position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; 
+      position: absolute; 
+      inset: 0; 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
       pointer-events: none; 
     }
+    
     .swipe-actions .zone { 
-      display: flex; align-items: center; padding: 0 12px; gap: 8px; 
-      --reveal: 0; --pulse: 1; --act: 44px; 
+      display: flex; 
+      align-items: center; 
+      padding: 0 12px; 
+      gap: 8px; 
+      --reveal: 0; 
+      --pulse: 1; 
     }
+    
     .swipe-actions .zone.left { justify-content: flex-start; }
     .swipe-actions .zone.right { justify-content: flex-end; }
     
     .swipe-actions .action {
-      pointer-events: auto; width: var(--act); height: var(--act);
-      min-width: var(--act); min-height: var(--act); border-radius: 50%;
-      flex-shrink: 0; box-sizing: border-box; font-size: 20px;
-      display: inline-flex; align-items: center; justify-content: center;
-      background: var(--bg, #e5e7eb); color: var(--fg, #111827);
-      box-shadow: 0 2px 8px rgba(0,0,0,.08); border: none; outline: none;
-      opacity: calc(var(--reveal));
-      transform: scale(calc((0.85 + var(--reveal) * 0.25) * var(--pulse)));
-      transition: transform 140ms ease, opacity 140ms ease, background-color 140ms ease;
+      pointer-events: auto; 
+      width: 44px; 
+      height: 44px;
+      min-width: 44px; 
+      min-height: 44px; 
+      border-radius: 50%;
+      flex-shrink: 0; 
+      font-size: 20px;
+      display: inline-flex; 
+      align-items: center; 
+      justify-content: center;
+      background: var(--bg, #e5e7eb); 
+      color: var(--fg, #111827);
+      box-shadow: 0 2px 8px rgba(0,0,0,.08); 
+      border: none; 
+      outline: none;
+      opacity: var(--reveal);
+      transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse)));
+      transition: transform 140ms ease, opacity 140ms ease;
     }
     
-    .swipe-wrap.pinned .swipe-actions .action {
-      box-shadow: 0 0 0 2px rgba(59,130,246,.3), 0 2px 8px rgba(0,0,0,.08);
+    .swipe-wrap.held .swipe-actions .action {
+      box-shadow: 0 0 0 2px rgba(59,130,246,.4), 0 2px 8px rgba(0,0,0,.12);
+      transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse) * 1.05));
     }
     
     .swipe-actions .action.complete { --bg: #16a34a; --fg: white; }
     .swipe-actions .action.flag { --bg: #f59e0b; --fg: white; }
     .swipe-actions .action.delete { --bg: #ef4444; --fg: white; }
     
-    .swipe-actions .zone.right .action:nth-child(1) { transition-delay: 40ms; }
-    
     @media (prefers-reduced-motion: reduce) {
       .subtask { transition: none !important; }
-      .swipe-actions .action { transition: opacity 80ms linear; }
+      .swipe-actions .action { transition: opacity 60ms linear; }
     }
   `;
+  
   document.head.appendChild(style);
 }
