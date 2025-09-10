@@ -277,12 +277,36 @@ function attachSwipe(wrap) {
         bootBehaviors();
         break;
       case 'more':
-        console.log('More action triggered, calling showMoreDropdown'); // Debug
-        const moreButton = rightZone.querySelector('.action.more');
-        showMoreDropdown(wrap, moreButton);
-        break;
-      default:
-        console.log('Unknown action:', actionName);
+      console.log('More action triggered'); // Debug
+      // Create dropdown directly here instead of importing
+      const dropdown = document.createElement('div');
+      dropdown.className = 'more-dropdown show';
+      dropdown.innerHTML = `
+        <div class="more-item" data-action="edit">
+          <span class="more-icon">✏️</span>
+          <span class="more-label">Edit</span>
+        </div>
+      `;
+      
+      dropdown.style.position = 'absolute';
+      dropdown.style.top = '50%';
+      dropdown.style.right = '60px';
+      dropdown.style.transform = 'translateY(-50%)';
+      dropdown.style.zIndex = '1000';
+      
+      wrap.appendChild(dropdown);
+      console.log('Dropdown created and added to wrap');
+      
+      // Handle dropdown clicks
+      dropdown.addEventListener('click', (e) => {
+        const item = e.target.closest('.more-item');
+        if (item && item.dataset.action === 'edit') {
+          console.log('Edit clicked');
+          // TODO: Add edit functionality here
+        }
+        dropdown.remove();
+      });
+      break;
     }
   }
 
