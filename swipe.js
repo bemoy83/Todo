@@ -383,6 +383,62 @@ function patchCSSOnce() {
     .swipe-actions .action.more { --bg: #6b7280; --fg: white; }
     .swipe-actions .action.delete { --bg: #ef4444; --fg: white; }
     
+    .more-dropdown {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border: 1px solid #e5e7eb;
+      opacity: 0;
+      transform: translateY(-50%) scale(0.95);
+      transition: opacity 150ms ease, transform 150ms ease;
+      pointer-events: none;
+    }
+    
+    .more-dropdown.show {
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
+      pointer-events: auto;
+    }
+    
+    .more-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background-color 150ms ease;
+      white-space: nowrap;
+      min-width: 120px;
+    }
+    
+    .more-item:hover {
+      background-color: #f3f4f6;
+    }
+    
+    .more-item:first-child {
+      border-radius: 8px 8px 0 0;
+    }
+    
+    .more-item:last-child {
+      border-radius: 0 0 8px 8px;
+    }
+    
+    .more-item:only-child {
+      border-radius: 8px;
+    }
+    
+    .more-icon {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+    }
+    
+    .more-label {
+      font-size: 14px;
+      color: #374151;
+      font-weight: 500;
+    }
+    
     @media (prefers-reduced-motion: reduce) {
       .subtask { transition: none !important; }
       .swipe-actions .action { transition: opacity 60ms linear; }
