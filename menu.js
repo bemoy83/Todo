@@ -91,6 +91,7 @@ function bindMoreDropdowns() {
 }
 
 export function showMoreDropdown(wrap, moreButton) {
+  console.log('showMoreDropdown called with:', wrap, moreButton); // Debug
   closeMoreDropdown(); // Close any existing dropdown
   
   const dropdown = document.createElement('div');
@@ -101,6 +102,8 @@ export function showMoreDropdown(wrap, moreButton) {
       <span class="more-label">Edit</span>
     </div>
   `;
+  
+  console.log('Dropdown created:', dropdown); // Debug
   
   // Position relative to the more button
   const buttonRect = moreButton.getBoundingClientRect();
@@ -115,8 +118,11 @@ export function showMoreDropdown(wrap, moreButton) {
   wrap.appendChild(dropdown);
   currentMoreDropdown = dropdown;
   
+  console.log('Dropdown added to wrap, currentMoreDropdown set'); // Debug
+  
   // Handle dropdown clicks
   dropdown.addEventListener('click', (e) => {
+    console.log('Dropdown clicked'); // Debug
     const item = e.target.closest('.more-item');
     if (!item) return;
     
