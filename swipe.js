@@ -436,9 +436,14 @@ function patchCSSOnce() {
       transition: transform 140ms ease, opacity 140ms ease;
     }
     
-    .swipe-wrap.held .swipe-actions .action {
+    .swipe-wrap.held .swipe-actions .action,
+    .swipe-wrap[style*="--hold-feedback"] .swipe-actions .action {
       box-shadow: 0 0 0 2px rgba(59,130,246,.4), 0 2px 8px rgba(0,0,0,.12);
       transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse) * 1.05));
+    }
+    
+    .swipe-wrap[style*="--hold-feedback"] {
+      background: rgba(59,130,246,.05);
     }
     
     .swipe-actions .action.complete { --bg: #16a34a; --fg: white; }
