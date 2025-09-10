@@ -94,8 +94,8 @@ function renderCard(m){
           <button class="action complete" data-act="complete" title="Complete">✓</button>
         </div>
         <div class="zone right">
-          <button class="action flag" data-act="flag" title="Flag">⚑</button>
-          <button class="action delete" data-act="delete" title="Delete">X</button>
+          <button class="action more" data-act="more" title="More actions">⋯</button>
+          <button class="action delete" data-act="delete" title="Delete">×</button>
         </div>
       </div>`;
 
@@ -106,7 +106,6 @@ function renderCard(m){
     row.innerHTML = `
       <div class="sub-handle" aria-label="Drag to move" role="button">⋮⋮</div>
       <div class="sub-text ${st.done ? 'done' : ''}"></div>
-      ${st.flagged ? '<div class="flag-dot" aria-hidden="true"></div>' : ''}
     `;
     $(".sub-text", row).textContent = st.text;
     wrap.appendChild(row);
@@ -161,7 +160,7 @@ function bindAdders(){
     const text = (input.value || '').trim();
     if(!text) return;
     const m = model.find(x=>x.id===mainId); if(!m) return;
-    m.subtasks.push({ id: uid('s'), text, done:false, flagged:false });
+    m.subtasks.push({ id: uid('s'), text, done:false });
     input.value = '';
     renderAll(); bootBehaviors();
   }, { once:false });
