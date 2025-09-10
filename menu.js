@@ -1,27 +1,37 @@
-// menu.js — clean ESM: menu interactions + styling
+// menu.js — clean ESM: menu interactions + more dropdown
 import { model, uid, renderAll, bootBehaviors, saveModel } from './core.js';
 
 let menuBound = false;
+let currentMoreDropdown = null;
 
 export function bindMenu() {
   if (menuBound) return;
   ensureMenuStructure();
   injectTopbarStyles();
   injectMenuStyles();
+  bindMainMenu();
+  bindMoreDropdowns();
+  menuBound = true;
+}
 
+function bindMainMenu() {
   const btn  = document.getElementById('menuBtn');
   const menu = document.getElementById('appMenu');
   const file = document.getElementById('importFile');
   if (!btn || !menu) return;
-
-  menuBound = true;
 
   function openMenu(){ menu.classList.add('open'); btn.setAttribute('aria-expanded','true'); menu.setAttribute('aria-hidden','false'); }
   function closeMenu(){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); menu.setAttribute('aria-hidden','true'); }
   function toggleMenu(){ menu.classList.contains('open') ? closeMenu() : openMenu(); }
 
   btn.addEventListener('click', (e)=>{ e.preventDefault(); toggleMenu(); });
-  document.addEventListener('pointerdown', (e)=>{ if(!menu.contains(e.target) && !btn.contains(e.target)) closeMenu(); });
+  document.addEventListener('pointerdown', (e)=>{ 
+    if(!menu.contains(e.target) && !btn.contains(e.target)) closeMenu(); 
+    // Also close more dropdown when clicking outside
+    if(currentMoreDropdown && !currentMoreDropdown.contains(e.target)) {
+      closeMoreDropdown();
+    }
+  });
 
   menu.addEventListener('click', (e)=>{
     const el = e.target.closest('[data-menu]'); if(!el) return;
@@ -41,7 +51,7 @@ export function bindMenu() {
         id: x.id || uid('m'),
         title: String(x.title || 'Untitled'),
         subtasks: Array.isArray(x.subtasks)
-          ? x.subtasks.map(s=>({ id:s.id||uid('s'), text:String(s.text||''), done:!!s.done, flagged:!!s.flagged }))
+          ? x.subtasks.map(s=>({ id:s.id||uid('s'), text:String(s.text||''), done:!!s.done }))
           : []
       }));
       model.splice(0, model.length, ...normalized);
@@ -62,6 +72,143 @@ export function bindMenu() {
     renderAll(); bootBehaviors();
     closeMenu();
   }
+}
+
+function bindMoreDropdowns() {
+  // Delegate for all "more" button clicks
+  document.addEventListener('click', (e) => {
+    const moreButton = e.target.closest('.action.more');
+    if (!moreButton) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const wrap = moreButton.closest('.swipe-wrap');
+    if (!wrap) return;
+    
+    showMoreDropdown(wrap, moreButton);
+  });
+}
+
+export function showMoreDropdown(wrap, moreButton) {
+  closeMoreDropdown(); // Close any existing dropdown
+  
+  const dropdown = document.createElement('div');
+  dropdown.className = 'more-dropdown show';
+  dropdown.innerHTML = `
+    <div class="more-item" data-action="edit">
+      <span class="more-icon">✏️</span>
+      <span class="more-label">Edit</span>
+    </div>
+  `;
+  
+  // Position relative to the more button
+  const buttonRect = moreButton.getBoundingClientRect();
+  const wrapRect = wrap.getBoundingClientRect();
+  
+  dropdown.style.position = 'absolute';
+  dropdown.style.top = '50%';
+  dropdown.style.right = '60px'; // Just left of the more button
+  dropdown.style.transform = 'translateY(-50%)';
+  dropdown.style.zIndex = '1000';
+  
+  wrap.appendChild(dropdown);
+  currentMoreDropdown = dropdown;
+  
+  // Handle dropdown clicks
+  dropdown.addEventListener('click', (e) => {
+    const item = e.target.closest('.more-item');
+    if (!item) return;
+    
+    const action = item.dataset.action;
+    if (action === 'edit') {
+      startEditMode(wrap);
+    }
+    
+    closeMoreDropdown();
+  });
+}
+
+export function closeMoreDropdown() {
+  if (currentMoreDropdown) {
+    currentMoreDropdown.remove();
+    currentMoreDropdown = null;
+  }
+}
+
+function startEditMode(wrap) {
+  const row = wrap.querySelector('.subtask');
+  const textEl = row.querySelector('.sub-text');
+  if (!textEl) return;
+  
+  // Get current subtask data
+  const mainId = wrap.dataset.mainId;
+  const subId = wrap.dataset.id;
+  const task = model.find(x => x.id === mainId);
+  if (!task) return;
+  
+  const subtask = task.subtasks.find(s => s.id === subId);
+  if (!subtask) return;
+  
+  const originalText = subtask.text || 'Untitled';
+  
+  // Create inline editor
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = originalText;
+  input.className = 'subtask-edit-input';
+  input.style.cssText = `
+    width: 100%;
+    border: 2px solid #3b82f6;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: inherit;
+    font-family: inherit;
+    background: white;
+    outline: none;
+    margin: 0;
+  `;
+  
+  // Replace text with input
+  const parent = textEl.parentNode;
+  parent.insertBefore(input, textEl);
+  textEl.style.display = 'none';
+  
+  // Focus and select
+  input.focus();
+  input.select();
+  
+  // Save on enter or blur
+  const saveEdit = () => {
+    const newText = input.value.trim();
+    if (newText && newText !== originalText) {
+      subtask.text = newText;
+      saveModel();
+      renderAll();
+      bootBehaviors();
+    } else {
+      // Restore original display if no changes
+      textEl.style.display = '';
+      input.remove();
+    }
+  };
+  
+  const cancelEdit = () => {
+    textEl.style.display = '';
+    input.remove();
+  };
+  
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
+  });
+  
+  input.addEventListener('blur', saveEdit);
 }
 
 function ensureMenuStructure(){
@@ -166,6 +313,63 @@ function injectMenuStyles(){
     }
     .menu-item:hover{ background:#f8f9fa; }
     .menu-item.danger{ color:var(--red); }
+    
+    /* More dropdown styles */
+    .more-dropdown {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border: 1px solid #e5e7eb;
+      opacity: 0;
+      transform: translateY(-50%) scale(0.95);
+      transition: opacity 150ms ease, transform 150ms ease;
+      pointer-events: none;
+    }
+    
+    .more-dropdown.show {
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
+      pointer-events: auto;
+    }
+    
+    .more-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background-color 150ms ease;
+      white-space: nowrap;
+      min-width: 120px;
+    }
+    
+    .more-item:hover {
+      background-color: #f3f4f6;
+    }
+    
+    .more-item:first-child {
+      border-radius: 8px 8px 0 0;
+    }
+    
+    .more-item:last-child {
+      border-radius: 0 0 8px 8px;
+    }
+    
+    .more-item:only-child {
+      border-radius: 8px;
+    }
+    
+    .more-icon {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+    }
+    
+    .more-label {
+      font-size: 14px;
+      color: #374151;
+      font-weight: 500;
+    }
   `;
   const style = document.createElement('style');
   style.id = 'menuStylePatch';
