@@ -1,4 +1,4 @@
-// swipe.js — ultra-simplified swipe gestures
+// swipe.js – ultra-simplified swipe gestures
 // Copy this to replace your existing swipe.js
 import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture } from './core.js';
 
@@ -253,7 +253,7 @@ function attachSwipe(wrap) {
   }
 
   function performAction(actionName) {
-    console.log('performAction called with:', actionName); // Debug
+    console.log('performAction called with:', actionName);
     const mainId = wrap.closest('.task-card').dataset.id;
     const subId = row.dataset.id;
     const task = model.find(x => x.id === mainId);
@@ -276,37 +276,7 @@ function attachSwipe(wrap) {
         renderAll();
         bootBehaviors();
         break;
-      case 'more':
-      console.log('More action triggered'); // Debug
-      // Create dropdown directly here instead of importing
-      const dropdown = document.createElement('div');
-      dropdown.className = 'more-dropdown show';
-      dropdown.innerHTML = `
-        <div class="more-item" data-action="edit">
-          <span class="more-icon">✏️</span>
-          <span class="more-label">Edit</span>
-        </div>
-      `;
-      
-      dropdown.style.position = 'absolute';
-      dropdown.style.top = '50%';
-      dropdown.style.right = '60px';
-      dropdown.style.transform = 'translateY(-50%)';
-      dropdown.style.zIndex = '1000';
-      
-      wrap.appendChild(dropdown);
-      console.log('Dropdown created and added to wrap');
-      
-      // Handle dropdown clicks
-      dropdown.addEventListener('click', (e) => {
-        const item = e.target.closest('.more-item');
-        if (item && item.dataset.action === 'edit') {
-          console.log('Edit clicked');
-          // TODO: Add edit functionality here
-        }
-        dropdown.remove();
-      });
-      break;
+      // Removed the 'more' case - let menu.js handle it
     }
   }
 
@@ -324,14 +294,18 @@ function attachSwipe(wrap) {
   row.addEventListener('pointerdown', onDown, { passive: true });
   row.addEventListener('click', closeDrawer);
   
-actions.addEventListener('click', (e) => {
+  // Handle action button clicks - but don't handle 'more' here, let menu.js handle it
+  actions.addEventListener('click', (e) => {
     const button = e.target.closest('.action');
     if (!button) return;
-    console.log('Action button clicked:', button.dataset.act); // Debug
-    performAction(button.dataset.act);
-    if (button.dataset.act !== 'more') {
-      closeDrawer(); // Don't close drawer for more button
+    console.log('Action button clicked:', button.dataset.act);
+    
+    // Only handle complete and delete here, let menu.js handle 'more'
+    if (button.dataset.act === 'complete' || button.dataset.act === 'delete') {
+      performAction(button.dataset.act);
+      closeDrawer();
     }
+    // For 'more' action, don't close drawer - menu.js will handle it
   });
   
   // Close drawer when clicking outside

@@ -1,4 +1,4 @@
-// menu.js — clean ESM: menu interactions + more dropdown
+// menu.js – clean ESM: menu interactions + more dropdown
 import { model, uid, renderAll, bootBehaviors, saveModel } from './core.js';
 
 let menuBound = false;
@@ -91,7 +91,7 @@ function bindMoreDropdowns() {
 }
 
 export function showMoreDropdown(wrap, moreButton) {
-  console.log('showMoreDropdown called with:', wrap, moreButton); // Debug
+  console.log('showMoreDropdown called'); // Debug
   closeMoreDropdown(); // Close any existing dropdown
   
   const dropdown = document.createElement('div');
@@ -102,8 +102,6 @@ export function showMoreDropdown(wrap, moreButton) {
       <span class="more-label">Edit</span>
     </div>
   `;
-  
-  console.log('Dropdown created:', dropdown); // Debug
   
   // Position relative to the more button
   const buttonRect = moreButton.getBoundingClientRect();
@@ -118,7 +116,7 @@ export function showMoreDropdown(wrap, moreButton) {
   wrap.appendChild(dropdown);
   currentMoreDropdown = dropdown;
   
-  console.log('Dropdown added to wrap, currentMoreDropdown set'); // Debug
+  console.log('Dropdown added to wrap'); // Debug
   
   // Handle dropdown clicks
   dropdown.addEventListener('click', (e) => {
@@ -143,20 +141,34 @@ export function closeMoreDropdown() {
 }
 
 function startEditMode(wrap) {
+  console.log('startEditMode called'); // Debug
   const row = wrap.querySelector('.subtask');
   const textEl = row.querySelector('.sub-text');
-  if (!textEl) return;
+  if (!textEl) {
+    console.log('No .sub-text element found'); // Debug
+    return;
+  }
   
-  // Get current subtask data
+  // Get current subtask data using the data attributes set in core.js
   const mainId = wrap.dataset.mainId;
   const subId = wrap.dataset.id;
+  
+  console.log('Looking for task:', mainId, 'subtask:', subId); // Debug
+  
   const task = model.find(x => x.id === mainId);
-  if (!task) return;
+  if (!task) {
+    console.log('Task not found'); // Debug
+    return;
+  }
   
   const subtask = task.subtasks.find(s => s.id === subId);
-  if (!subtask) return;
+  if (!subtask) {
+    console.log('Subtask not found'); // Debug
+    return;
+  }
   
   const originalText = subtask.text || 'Untitled';
+  console.log('Original text:', originalText); // Debug
   
   // Create inline editor
   const input = document.createElement('input');
@@ -173,6 +185,7 @@ function startEditMode(wrap) {
     background: white;
     outline: none;
     margin: 0;
+    box-sizing: border-box;
   `;
   
   // Replace text with input
@@ -186,6 +199,7 @@ function startEditMode(wrap) {
   
   // Save on enter or blur
   const saveEdit = () => {
+    console.log('Saving edit'); // Debug
     const newText = input.value.trim();
     if (newText && newText !== originalText) {
       subtask.text = newText;
@@ -200,6 +214,7 @@ function startEditMode(wrap) {
   };
   
   const cancelEdit = () => {
+    console.log('Canceling edit'); // Debug
     textEl.style.display = '';
     input.remove();
   };
@@ -246,6 +261,23 @@ function ensureMenuStructure(){
     input.accept = 'application/json';
     input.hidden = true;
     document.body.appendChild(input);
+  }
+}
+
+function exportBackup() {
+  try {
+    const dataStr = JSON.stringify(model, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tasks-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Export failed: ' + (err?.message || err));
   }
 }
 
