@@ -1,20 +1,15 @@
-// swipe.js – ultra-simplified swipe gestures with direct edit
-import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture, startEditMode } from './core.js';
-
-// Ultra-simplified tuning constants
-const SWIPE = {
-  HOLD_TIME: 1000,         // 1 second to register as hold (deliberate)
-  MIN_INTENT_DISTANCE: 40, // Minimum distance to confirm intentional swipe
-  SNAP_DURATION: 120,
-  EXEC_DURATION: 120,
-  VERTICAL_GUARD: 15,
-};
+// swipe.js – swipe gestures for both subtasks and task cards
+import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture, startEditMode, startEditTaskTitle } from './core.js';
+import { SWIPE } from './constants.js';
 
 export function enableSwipe() {
   if (!FLAGS.swipeGestures) return;
   
   patchCSSOnce();
-  document.querySelectorAll('.swipe-wrap').forEach(attachSwipe);
+  
+  // Attach swipe to both subtasks and task cards
+  document.querySelectorAll('.swipe-wrap').forEach(wrap => attachSubtaskSwipe(wrap));
+  document.querySelectorAll('.card-swipe-wrap').forEach(wrap => attachTaskSwipe(wrap));
   
   // Global click prevention
   const app = document.getElementById('app') || document;
@@ -26,19 +21,40 @@ export function enableSwipe() {
   }
 }
 
-function attachSwipe(wrap) {
+function attachSubtaskSwipe(wrap) {
   const row = wrap.querySelector('.subtask');
   const actions = wrap.querySelector('.swipe-actions');
   const leftZone = actions.querySelector('.zone.left');
   const rightZone = actions.querySelector('.zone.right');
 
-  // Simplified state
+  attachSwipeToElement(wrap, row, actions, leftZone, rightZone, 'subtask');
+}
+
+function attachTaskSwipe(wrap) {
+  const row = wrap.querySelector('.card-row');
+  const actions = wrap.querySelector('.card-swipe-actions');
+  const leftZone = actions.querySelector('.zone.left');
+  const rightZone = actions.querySelector('.zone.right');
+
+  attachSwipeToElement(wrap, row, actions, leftZone, rightZone, 'task');
+}
+
+function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
+  if (!row || !actions || !leftZone || !rightZone) {
+    console.log(`Missing elements for ${type} swipe:`, { row, actions, leftZone, rightZone });
+    return;
+  }
+
+  // Gesture state
   let startX = 0, startY = 0, currentX = 0;
   let openX = 0; // Current open position
   let tracking = false, captured = false;
   let holdTimer = null, isHolding = false;
   let scrollYAtStart = 0;
   let unlockScroll = null;
+  
+  // Velocity tracking for fling detection
+  let velocityTracker = [];
 
   // Helper functions
   const getLeftWidth = () => leftZone.getBoundingClientRect().width;
@@ -46,6 +62,29 @@ function attachSwipe(wrap) {
   const setTransform = (x) => row.style.transform = `translate3d(${Math.round(x)}px,0,0)`;
   const haptic = () => navigator.vibrate?.(8);
   const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Velocity tracking
+  function trackVelocity(x, time) {
+    velocityTracker.push({ x, time });
+    // Keep only recent samples
+    const cutoff = time - SWIPE.FLING_EXPIRE;
+    velocityTracker = velocityTracker.filter(s => s.time >= cutoff);
+  }
+
+  function getVelocity() {
+    if (velocityTracker.length < 2) return 0;
+    const latest = velocityTracker[velocityTracker.length - 1];
+    const earliest = velocityTracker[0];
+    const dt = latest.time - earliest.time;
+    if (dt <= 0) return 0;
+    return Math.abs(latest.x - earliest.x) / dt; // px/ms
+  }
+
+  function isFling() {
+    const velocity = getVelocity();
+    const distance = Math.abs(currentX - startX);
+    return velocity >= SWIPE.FLING_VX && distance >= SWIPE.FLING_MIN;
+  }
 
   function lockScroll() {
     if (unlockScroll) return;
@@ -81,26 +120,27 @@ function attachSwipe(wrap) {
 
   // Resistance for over-pulling
   function applyResistance(x) {
-    const maxLeft = getLeftWidth() * 1.3;
-    const maxRight = getRightWidth() * 1.3;
+    const maxLeft = getLeftWidth() * SWIPE.MAX_OVEREXTEND;
+    const maxRight = getRightWidth() * SWIPE.MAX_OVEREXTEND;
     
-    if (x > maxLeft) return maxLeft + (x - maxLeft) * 0.3;
-    if (x < -maxRight) return -maxRight + (x + maxRight) * 0.3;
+    if (x > maxLeft) return maxLeft + (x - maxLeft) * SWIPE.RESISTANCE_FACTOR;
+    if (x < -maxRight) return -maxRight + (x + maxRight) * SWIPE.RESISTANCE_FACTOR;
     return x;
   }
 
-  // Hold detection - much simpler
+  // Hold detection with industry-standard timing
   function startHoldTimer() {
     clearHoldTimer();
-    console.log('Starting hold timer for 1 second...');
+    console.log(`Starting hold timer for ${SWIPE.HOLD_MS}ms...`);
     holdTimer = setTimeout(() => {
       if (captured && tracking) {
         isHolding = true;
         wrap.classList.add('held');
         wrap.style.setProperty('--hold-feedback', '1');
-        console.log('Hold detected after 1 second!');
+        console.log('Hold detected!');
+        haptic(); // Haptic feedback on hold detection
       }
-    }, SWIPE.HOLD_TIME);
+    }, SWIPE.HOLD_MS);
   }
 
   function clearHoldTimer() {
@@ -128,6 +168,7 @@ function attachSwipe(wrap) {
   function onDown(e) {
     if (gesture.drag || gesture.swipe || 
         e.target.closest('.sub-handle') || 
+        e.target.closest('.card-handle') ||  // Also exclude card drag handles
         e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
 
     const p = pt(e);
@@ -156,6 +197,7 @@ function attachSwipe(wrap) {
     const p = pt(samples[samples.length - 1]);
     const dx = p.x - startX;
     const dy = p.y - startY;
+    const now = performance.now();
     
     currentX = p.x;
 
@@ -174,7 +216,7 @@ function attachSwipe(wrap) {
         lockScroll();
         e.preventDefault();
         
-        // Start the 1-second hold timer
+        // Start hold timer with industry-standard timing
         startHoldTimer();
         console.log('Swipe captured at', Math.abs(dx), 'px - hold timer started');
       } else {
@@ -183,6 +225,9 @@ function attachSwipe(wrap) {
     }
 
     e.preventDefault();
+    
+    // Track velocity for fling detection
+    trackVelocity(p.x, now);
     
     const newX = applyResistance(openX + dx);
     setTransform(newX);
@@ -201,7 +246,18 @@ function attachSwipe(wrap) {
     
     const dx = currentX - startX;
     
-    // HOLD: User held for 1 second - snap open for action selection
+    // Priority 1: FLING - Fast velocity-based gesture (immediate execution)
+    if (isFling()) {
+      console.log('Fling detected - executing immediately, velocity:', getVelocity().toFixed(2), 'px/ms');
+      if (dx > 0) {
+        executeAction(type === 'task' ? 'complete-all' : 'complete', leftZone);
+      } else {
+        executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
+      }
+      return;
+    }
+    
+    // Priority 2: HOLD - User held for required time (snap open for action selection)
     if (isHolding) {
       console.log('Hold completed - snapping open for action selection');
       const targetX = dx > 0 ? getLeftWidth() : -getRightWidth();
@@ -213,20 +269,31 @@ function attachSwipe(wrap) {
       return;
     }
     
-    // SWIPE: Released before 1 second - execute immediately
-    console.log('Quick swipe - executing based on direction, distance:', Math.abs(dx));
-    if (dx > 0) {
-      executeAction('complete', leftZone);
-    } else {
-      executeAction('delete', rightZone);
+    // Priority 3: DELIBERATE SWIPE - Slow but intentional movement (execute based on distance)
+    const distance = Math.abs(dx);
+    if (distance >= SWIPE.DELIBERATE_MIN) {
+      console.log('Deliberate swipe - executing based on distance:', distance);
+      if (dx > 0) {
+        executeAction(type === 'task' ? 'complete-all' : 'complete', leftZone);
+      } else {
+        executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
+      }
+      return;
     }
+    
+    // Priority 4: CANCEL - Not enough intent, return to original position
+    console.log('Insufficient intent - canceling gesture');
+    animateTo(0);
+    openX = 0;
+    updateVisuals(0);
+    cleanup();
   }
 
   function executeAction(actionName, zone) {
     haptic();
     pulseZone(zone);
     performAction(actionName);
-    afterExecute(actionName === 'complete' ? 'right' : 'left');
+    afterExecute(actionName.includes('complete') ? 'right' : 'left');
     cleanup();
   }
 
@@ -252,36 +319,69 @@ function attachSwipe(wrap) {
   }
 
   function performAction(actionName) {
-    console.log('performAction called with:', actionName);
-    const mainId = wrap.closest('.task-card').dataset.id;
-    const subId = row.dataset.id;
-    const task = model.find(x => x.id === mainId);
+    console.log('performAction called with:', actionName, 'for type:', type);
     
-    if (!task) return;
-    
-    const subtaskIndex = task.subtasks.findIndex(s => s.id === subId);
-    if (subtaskIndex < 0) return;
-    
-    const subtask = task.subtasks[subtaskIndex];
-    
-    switch (actionName) {
-      case 'delete':
-        task.subtasks.splice(subtaskIndex, 1);
-        renderAll();
-        bootBehaviors();
-        break;
-      case 'complete':
-        subtask.done = !subtask.done;
-        renderAll();
-        bootBehaviors();
-        break;
-      case 'edit':
-        console.log('Edit action triggered');
-        // Close the drawer first
-        closeDrawer();
-        // Then start edit mode
-        startEditMode(row);
-        break;
+    if (type === 'subtask') {
+      const mainId = wrap.closest('.task-card').dataset.id;
+      const subId = row.dataset.id;
+      const task = model.find(x => x.id === mainId);
+      
+      if (!task) return;
+      
+      const subtaskIndex = task.subtasks.findIndex(s => s.id === subId);
+      if (subtaskIndex < 0) return;
+      
+      const subtask = task.subtasks[subtaskIndex];
+      
+      switch (actionName) {
+        case 'delete':
+          task.subtasks.splice(subtaskIndex, 1);
+          renderAll();
+          bootBehaviors();
+          break;
+        case 'complete':
+          subtask.done = !subtask.done;
+          renderAll();
+          bootBehaviors();
+          break;
+        case 'edit':
+          console.log('Edit subtask action triggered');
+          closeDrawer();
+          startEditMode(row);
+          break;
+      }
+    } else if (type === 'task') {
+      const taskId = wrap.closest('.task-card').dataset.id;
+      const task = model.find(x => x.id === taskId);
+      
+      if (!task) return;
+      
+      switch (actionName) {
+        case 'complete-all':
+          console.log('Complete all subtasks action triggered');
+          const allCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.done);
+          // Toggle all subtasks to opposite state
+          task.subtasks.forEach(st => st.done = !allCompleted);
+          renderAll();
+          bootBehaviors();
+          break;
+        case 'edit-title':
+          console.log('Edit task title action triggered');
+          closeDrawer();
+          startEditTaskTitle(row);
+          break;
+        case 'delete-task':
+          console.log('Delete task action triggered');
+          if (confirm(`Delete "${task.title}" and all its subtasks?`)) {
+            const taskIndex = model.findIndex(x => x.id === taskId);
+            if (taskIndex >= 0) {
+              model.splice(taskIndex, 1);
+              renderAll();
+              bootBehaviors();
+            }
+          }
+          break;
+      }
     }
   }
 
@@ -308,7 +408,7 @@ function attachSwipe(wrap) {
     performAction(button.dataset.act);
     
     // Don't close drawer immediately for edit action - let the edit mode handle it
-    if (button.dataset.act !== 'edit') {
+    if (button.dataset.act !== 'edit' && button.dataset.act !== 'edit-title') {
       closeDrawer();
     }
   });
