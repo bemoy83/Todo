@@ -268,9 +268,22 @@ export function renderAll(){
 
 function renderCard(m){
   const card = document.createElement("article");
-  card.className = "task-card";
+  card.className = "task-card card-swipe-wrap";  // Add card-swipe-wrap class to existing task-card
   card.dataset.id = m.id;
+  
+  // Determine if all subtasks are completed
+  const allCompleted = m.subtasks.length > 0 && m.subtasks.every(st => st.done);
+  
   card.innerHTML = `
+    <div class="card-swipe-actions" aria-hidden="true">
+      <div class="zone left">
+        <button class="action complete" data-act="complete-all" title="${allCompleted ? 'Mark incomplete' : 'Complete all'}">✓</button>
+      </div>
+      <div class="zone right">
+        <button class="action edit" data-act="edit-title" title="Edit task">✏</button>
+        <button class="action delete" data-act="delete-task" title="Delete task">×</button>
+      </div>
+    </div>
     <div class="card-row">
       <div class="card-handle" aria-label="Move task" role="button">⋮⋮</div>
       <div class="task-title"></div>
@@ -280,6 +293,11 @@ function renderCard(m){
 
   $(".task-title", card).textContent = m.title;
   $(".badge", card).textContent = m.subtasks.length;
+
+  // Add completed class if all subtasks are done
+  if (allCompleted) {
+    card.classList.add('all-completed');
+  }
 
   const list = $(".subtask-list", card);
   for(const st of m.subtasks){
