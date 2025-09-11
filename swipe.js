@@ -523,6 +523,8 @@ function patchCSSOnce() {
       pointer-events: none;
       border-radius: var(--radius, 12px) var(--radius, 12px) 0 0;
       z-index: 0; /* Behind the card row */
+      background: #f8f9fa; /* Subtle gray background for contrast */
+      overflow: hidden; /* Prevent corner bleeding */
     }
     
     .swipe-actions .zone,
@@ -534,19 +536,24 @@ function patchCSSOnce() {
       --reveal: 0; 
       --pulse: 1;
       min-height: inherit; /* Inherit the height from parent */
+      transition: background-color 200ms ease;
     }
     
-    /* Add background colors to action zones for visibility */
+    /* Dynamic background colors with fade support */
     .swipe-actions .zone.left,
     .card-swipe-actions .zone.left { 
       justify-content: flex-start;
-      background: linear-gradient(to right, #16a34a, #16a34a88); /* Green gradient */
+      background: rgba(22, 163, 74, calc(var(--reveal) * 0.3 * var(--fade, 1))); /* Green with reveal and fade */
+      opacity: var(--fade, 1);
+      transition: opacity 150ms ease, background-color 150ms ease;
     }
     
     .swipe-actions .zone.right,
     .card-swipe-actions .zone.right { 
       justify-content: flex-end;
-      background: linear-gradient(to left, #ef4444, #ef444488); /* Red gradient */
+      background: rgba(239, 68, 68, calc(var(--reveal) * 0.3 * var(--fade, 1))); /* Red with reveal and fade */
+      opacity: var(--fade, 1);
+      transition: opacity 150ms ease, background-color 150ms ease;
     }
     
     .swipe-actions .action,
