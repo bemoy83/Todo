@@ -440,7 +440,10 @@ function patchCSSOnce() {
     /* Subtask swipe styles */
     .subtask { 
       will-change: transform; 
-      touch-action: pan-y; 
+      touch-action: pan-y;
+      position: relative;
+      background: white;
+      transition: transform 140ms ease-out, box-shadow 140ms ease-out;
     }
     
     .swipe-wrap.swiping .subtask { 
@@ -451,10 +454,21 @@ function patchCSSOnce() {
     .card-row {
       will-change: transform;
       touch-action: pan-y;
+      position: relative;
+      background: white;
+      transition: transform 140ms ease-out, box-shadow 140ms ease-out;
+      border-radius: var(--radius, 12px);
+      z-index: 1;
     }
     
     .card-swipe-wrap.swiping .card-row {
       touch-action: none;
+    }
+    
+    /* Enhanced swiping feedback */
+    .swipe-wrap.swiping .subtask,
+    .card-swipe-wrap.swiping .card-row {
+      transition: none; /* Disable transitions during active swiping */
     }
     
     body.lock-scroll { 
@@ -468,7 +482,8 @@ function patchCSSOnce() {
       inset: 0; 
       display: grid; 
       grid-template-columns: 1fr 1fr; 
-      pointer-events: none; 
+      pointer-events: none;
+      border-radius: var(--radius-sm, 10px);
     }
     
     /* Task card swipe actions */
@@ -478,13 +493,15 @@ function patchCSSOnce() {
       display: grid;
       grid-template-columns: 1fr 1fr;
       pointer-events: none;
+      border-radius: var(--radius, 12px);
+      z-index: 0; /* Behind the card row */
     }
     
     .swipe-actions .zone,
     .card-swipe-actions .zone { 
       display: flex; 
       align-items: center; 
-      padding: 0 12px; 
+      padding: 0 16px; 
       gap: 8px; 
       --reveal: 0; 
       --pulse: 1; 
@@ -518,6 +535,7 @@ function patchCSSOnce() {
       transition: transform 140ms ease, opacity 140ms ease;
     }
     
+    /* Enhanced hold feedback */
     .swipe-wrap.held .swipe-actions .action,
     .card-swipe-wrap.held .card-swipe-actions .action,
     .swipe-wrap[style*="--hold-feedback"] .swipe-actions .action,
@@ -529,8 +547,10 @@ function patchCSSOnce() {
     .swipe-wrap[style*="--hold-feedback"],
     .card-swipe-wrap[style*="--hold-feedback"] {
       background: rgba(59,130,246,.05);
+      border-radius: var(--radius, 12px);
     }
     
+    /* Action button colors */
     .swipe-actions .action.complete,
     .card-swipe-actions .action.complete { --bg: #16a34a; --fg: white; }
     .swipe-actions .action.edit,
@@ -548,9 +568,18 @@ function patchCSSOnce() {
       background: var(--green, #16a34a);
     }
     
+    /* Ensure task card background doesn't interfere */
+    .task-card {
+      position: relative;
+      overflow: hidden;
+    }
+    
     @media (prefers-reduced-motion: reduce) {
       .subtask,
-      .card-row { transition: none !important; }
+      .card-row { 
+        transition: none !important; 
+        transform: none !important;
+      }
       .swipe-actions .action,
       .card-swipe-actions .action { transition: opacity 60ms linear; }
     }
