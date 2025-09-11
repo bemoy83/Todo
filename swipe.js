@@ -8,8 +8,13 @@ export function enableSwipe() {
   patchCSSOnce();
   
   // Attach swipe to both subtasks and task cards
-  document.querySelectorAll('.swipe-wrap').forEach(wrap => attachSubtaskSwipe(wrap));
-  document.querySelectorAll('.card-swipe-wrap').forEach(wrap => attachTaskSwipe(wrap));
+  const subtaskWraps = document.querySelectorAll('.swipe-wrap');
+  const cardWraps = document.querySelectorAll('.card-swipe-wrap');
+  
+  console.log('Enabling swipe - found', subtaskWraps.length, 'subtask wraps and', cardWraps.length, 'card wraps');
+  
+  subtaskWraps.forEach(wrap => attachSubtaskSwipe(wrap));
+  cardWraps.forEach(wrap => attachTaskSwipe(wrap));
   
   // Global click prevention
   const app = document.getElementById('app') || document;
@@ -31,11 +36,31 @@ function attachSubtaskSwipe(wrap) {
 }
 
 function attachTaskSwipe(wrap) {
+  console.log('Attaching task swipe to:', wrap);
   const row = wrap.querySelector('.card-row');
   const actions = wrap.querySelector('.card-swipe-actions');
-  const leftZone = actions.querySelector('.zone.left');
-  const rightZone = actions.querySelector('.zone.right');
+  const leftZone = actions?.querySelector('.zone.left');
+  const rightZone = actions?.querySelector('.zone.right');
 
+  console.log('Task swipe elements:', { row, actions, leftZone, rightZone });
+
+  if (!row || !actions || !leftZone || !rightZone) {
+    console.warn('Missing elements for task swipe:', { row, actions, leftZone, rightZone });
+    return;
+  }
+
+  // Dynamically align action buttons with card-row height
+  const alignActions = () => {
+    const rowRect = row.getBoundingClientRect();
+    actions.style.height = `${rowRect.height}px`;
+    actions.style.setProperty('--card-row-height', `${rowRect.height}px`);
+  };
+  
+  // Align on initial load and when window resizes
+  alignActions();
+  window.addEventListener('resize', alignActions);
+
+  console.log('Successfully attaching task swipe to card');
   attachSwipeToElement(wrap, row, actions, leftZone, rightZone, 'task');
 }
 
@@ -486,14 +511,17 @@ function patchCSSOnce() {
       border-radius: var(--radius-sm, 10px);
     }
     
-    /* Task card swipe actions */
+    /* Task card swipe actions - aligned with card-row only */
     .card-swipe-actions {
       position: absolute;
-      inset: 0;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--card-row-height, 60px); /* Will be set dynamically to match card-row */
       display: grid;
       grid-template-columns: 1fr 1fr;
       pointer-events: none;
-      border-radius: var(--radius, 12px);
+      border-radius: var(--radius, 12px) var(--radius, 12px) 0 0;
       z-index: 0; /* Behind the card row */
     }
     
@@ -504,13 +532,22 @@ function patchCSSOnce() {
       padding: 0 16px; 
       gap: 8px; 
       --reveal: 0; 
-      --pulse: 1; 
+      --pulse: 1;
+      min-height: inherit; /* Inherit the height from parent */
     }
     
+    /* Add background colors to action zones for visibility */
     .swipe-actions .zone.left,
-    .card-swipe-actions .zone.left { justify-content: flex-start; }
+    .card-swipe-actions .zone.left { 
+      justify-content: flex-start;
+      background: linear-gradient(to right, #16a34a, #16a34a88); /* Green gradient */
+    }
+    
     .swipe-actions .zone.right,
-    .card-swipe-actions .zone.right { justify-content: flex-end; }
+    .card-swipe-actions .zone.right { 
+      justify-content: flex-end;
+      background: linear-gradient(to left, #ef4444, #ef444488); /* Red gradient */
+    }
     
     .swipe-actions .action,
     .card-swipe-actions .action {
