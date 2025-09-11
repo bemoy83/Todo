@@ -1,8 +1,7 @@
-// menu.js – clean ESM: menu interactions + more dropdown
+// menu.js – clean ESM: main menu interactions only
 import { model, uid, renderAll, bootBehaviors, saveModel } from './core.js';
 
 let menuBound = false;
-let currentMoreDropdown = null;
 
 export function bindMenu() {
   if (menuBound) return;
@@ -10,7 +9,6 @@ export function bindMenu() {
   injectTopbarStyles();
   injectMenuStyles();
   bindMainMenu();
-  bindMoreDropdowns();
   menuBound = true;
 }
 
@@ -27,10 +25,6 @@ function bindMainMenu() {
   btn.addEventListener('click', (e)=>{ e.preventDefault(); toggleMenu(); });
   document.addEventListener('pointerdown', (e)=>{ 
     if(!menu.contains(e.target) && !btn.contains(e.target)) closeMenu(); 
-    // Also close more dropdown when clicking outside
-    if(currentMoreDropdown && !currentMoreDropdown.contains(e.target)) {
-      closeMoreDropdown();
-    }
   });
 
   menu.addEventListener('click', (e)=>{
@@ -74,162 +68,21 @@ function bindMainMenu() {
   }
 }
 
-function bindMoreDropdowns() {
-  // Delegate for all "more" button clicks
-  document.addEventListener('click', (e) => {
-    const moreButton = e.target.closest('.action.more');
-    if (!moreButton) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const wrap = moreButton.closest('.swipe-wrap');
-    if (!wrap) return;
-    
-    showMoreDropdown(wrap, moreButton);
-  });
-}
-
-export function showMoreDropdown(wrap, moreButton) {
-  console.log('showMoreDropdown called'); // Debug
-  closeMoreDropdown(); // Close any existing dropdown
-  
-  const dropdown = document.createElement('div');
-  dropdown.className = 'more-dropdown show';
-  dropdown.innerHTML = `
-    <div class="more-item" data-action="edit">
-      <span class="more-icon">✏️</span>
-      <span class="more-label">Edit</span>
-    </div>
-  `;
-  
-  // Position relative to the more button
-  const buttonRect = moreButton.getBoundingClientRect();
-  const wrapRect = wrap.getBoundingClientRect();
-  
-  dropdown.style.position = 'absolute';
-  dropdown.style.top = '50%';
-  dropdown.style.right = '60px'; // Just left of the more button
-  dropdown.style.transform = 'translateY(-50%)';
-  dropdown.style.zIndex = '1000';
-  
-  wrap.appendChild(dropdown);
-  currentMoreDropdown = dropdown;
-  
-  console.log('Dropdown added to wrap'); // Debug
-  
-  // Handle dropdown clicks
-  dropdown.addEventListener('click', (e) => {
-    console.log('Dropdown clicked'); // Debug
-    const item = e.target.closest('.more-item');
-    if (!item) return;
-    
-    const action = item.dataset.action;
-    if (action === 'edit') {
-      startEditMode(wrap);
-    }
-    
-    closeMoreDropdown();
-  });
-}
-
-export function closeMoreDropdown() {
-  if (currentMoreDropdown) {
-    currentMoreDropdown.remove();
-    currentMoreDropdown = null;
+function exportBackup() {
+  try {
+    const dataStr = JSON.stringify(model, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tasks-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Export failed: ' + (err?.message || err));
   }
-}
-
-function startEditMode(wrap) {
-  console.log('startEditMode called'); // Debug
-  const row = wrap.querySelector('.subtask');
-  const textEl = row.querySelector('.sub-text');
-  if (!textEl) {
-    console.log('No .sub-text element found'); // Debug
-    return;
-  }
-  
-  // Get current subtask data using the data attributes set in core.js
-  const mainId = wrap.dataset.mainId;
-  const subId = wrap.dataset.id;
-  
-  console.log('Looking for task:', mainId, 'subtask:', subId); // Debug
-  
-  const task = model.find(x => x.id === mainId);
-  if (!task) {
-    console.log('Task not found'); // Debug
-    return;
-  }
-  
-  const subtask = task.subtasks.find(s => s.id === subId);
-  if (!subtask) {
-    console.log('Subtask not found'); // Debug
-    return;
-  }
-  
-  const originalText = subtask.text || 'Untitled';
-  console.log('Original text:', originalText); // Debug
-  
-  // Create inline editor
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = originalText;
-  input.className = 'subtask-edit-input';
-  input.style.cssText = `
-    width: 100%;
-    border: 2px solid #3b82f6;
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-size: inherit;
-    font-family: inherit;
-    background: white;
-    outline: none;
-    margin: 0;
-    box-sizing: border-box;
-  `;
-  
-  // Replace text with input
-  const parent = textEl.parentNode;
-  parent.insertBefore(input, textEl);
-  textEl.style.display = 'none';
-  
-  // Focus and select
-  input.focus();
-  input.select();
-  
-  // Save on enter or blur
-  const saveEdit = () => {
-    console.log('Saving edit'); // Debug
-    const newText = input.value.trim();
-    if (newText && newText !== originalText) {
-      subtask.text = newText;
-      saveModel();
-      renderAll();
-      bootBehaviors();
-    } else {
-      // Restore original display if no changes
-      textEl.style.display = '';
-      input.remove();
-    }
-  };
-  
-  const cancelEdit = () => {
-    console.log('Canceling edit'); // Debug
-    textEl.style.display = '';
-    input.remove();
-  };
-  
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      saveEdit();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelEdit();
-    }
-  });
-  
-  input.addEventListener('blur', saveEdit);
 }
 
 function ensureMenuStructure(){
@@ -261,23 +114,6 @@ function ensureMenuStructure(){
     input.accept = 'application/json';
     input.hidden = true;
     document.body.appendChild(input);
-  }
-}
-
-function exportBackup() {
-  try {
-    const dataStr = JSON.stringify(model, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `tasks-backup-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    alert('Export failed: ' + (err?.message || err));
   }
 }
 
@@ -351,63 +187,6 @@ function injectMenuStyles(){
     }
     .menu-item:hover{ background:#f8f9fa; }
     .menu-item.danger{ color:var(--red); }
-    
-    /* More dropdown styles */
-    .more-dropdown {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      border: 1px solid #e5e7eb;
-      opacity: 0;
-      transform: translateY(-50%) scale(0.95);
-      transition: opacity 150ms ease, transform 150ms ease;
-      pointer-events: none;
-    }
-    
-    .more-dropdown.show {
-      opacity: 1;
-      transform: translateY(-50%) scale(1);
-      pointer-events: auto;
-    }
-    
-    .more-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
-      cursor: pointer;
-      transition: background-color 150ms ease;
-      white-space: nowrap;
-      min-width: 120px;
-    }
-    
-    .more-item:hover {
-      background-color: #f3f4f6;
-    }
-    
-    .more-item:first-child {
-      border-radius: 8px 8px 0 0;
-    }
-    
-    .more-item:last-child {
-      border-radius: 0 0 8px 8px;
-    }
-    
-    .more-item:only-child {
-      border-radius: 8px;
-    }
-    
-    .more-icon {
-      font-size: 16px;
-      width: 20px;
-      text-align: center;
-    }
-    
-    .more-label {
-      font-size: 14px;
-      color: #374151;
-      font-weight: 500;
-    }
   `;
   const style = document.createElement('style');
   style.id = 'menuStylePatch';

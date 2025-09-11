@@ -1,6 +1,5 @@
-// swipe.js – ultra-simplified swipe gestures
-// Copy this to replace your existing swipe.js
-import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture } from './core.js';
+// swipe.js – ultra-simplified swipe gestures with direct edit
+import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture, startEditMode } from './core.js';
 
 // Ultra-simplified tuning constants
 const SWIPE = {
@@ -276,7 +275,13 @@ function attachSwipe(wrap) {
         renderAll();
         bootBehaviors();
         break;
-      // Removed the 'more' case - let menu.js handle it
+      case 'edit':
+        console.log('Edit action triggered');
+        // Close the drawer first
+        closeDrawer();
+        // Then start edit mode
+        startEditMode(row);
+        break;
     }
   }
 
@@ -294,18 +299,18 @@ function attachSwipe(wrap) {
   row.addEventListener('pointerdown', onDown, { passive: true });
   row.addEventListener('click', closeDrawer);
   
-  // Handle action button clicks - but don't handle 'more' here, let menu.js handle it
+  // Handle action button clicks
   actions.addEventListener('click', (e) => {
     const button = e.target.closest('.action');
     if (!button) return;
-    console.log('Action button clicked:', button.dataset.act);
     
-    // Only handle complete and delete here, let menu.js handle 'more'
-    if (button.dataset.act === 'complete' || button.dataset.act === 'delete') {
-      performAction(button.dataset.act);
+    console.log('Action button clicked:', button.dataset.act);
+    performAction(button.dataset.act);
+    
+    // Don't close drawer immediately for edit action - let the edit mode handle it
+    if (button.dataset.act !== 'edit') {
       closeDrawer();
     }
-    // For 'more' action, don't close drawer - menu.js will handle it
   });
   
   // Close drawer when clicking outside
@@ -387,7 +392,7 @@ function patchCSSOnce() {
     }
     
     .swipe-actions .action.complete { --bg: #16a34a; --fg: white; }
-    .swipe-actions .action.more { --bg: #6b7280; --fg: white; }
+    .swipe-actions .action.edit { --bg: #f59e0b; --fg: white; }
     .swipe-actions .action.delete { --bg: #ef4444; --fg: white; }
     
     @media (prefers-reduced-motion: reduce) {
