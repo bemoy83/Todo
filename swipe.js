@@ -231,14 +231,14 @@ function attachSwipe(wrap) {
   }
 
   function animateTo(targetX) {
-    const duration = prefersReducedMotion() ? 80 : SWIPE.SNAP_DURATION;
+    const duration = prefersReducedMotion() ? 80 : SWIPE.SNAP_MS;
     row.style.transition = `transform ${duration}ms ease`;
     setTransform(targetX);
     row.addEventListener('transitionend', () => row.style.transition = '', { once: true });
   }
 
   function afterExecute(direction) {
-    const duration = prefersReducedMotion() ? 80 : SWIPE.EXEC_DURATION;
+    const duration = prefersReducedMotion() ? 80 : SWIPE.EXEC_MS;
     const distance = direction === 'right' ? getLeftWidth() * 1.2 : -getRightWidth() * 1.2;
     
     row.style.transition = `transform ${duration}ms ease, opacity ${duration}ms ease`;
