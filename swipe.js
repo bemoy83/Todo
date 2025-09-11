@@ -325,6 +325,7 @@ function patchCSSOnce() {
   const style = document.createElement('style');
   style.id = 'swipeSimplePatch';
   style.textContent = `
+    /* Subtask swipe styles */
     .subtask { 
       will-change: transform; 
       touch-action: pan-y; 
@@ -334,11 +335,22 @@ function patchCSSOnce() {
       touch-action: none; 
     }
     
+    /* Task card swipe styles */
+    .card-row {
+      will-change: transform;
+      touch-action: pan-y;
+    }
+    
+    .card-swipe-wrap.swiping .card-row {
+      touch-action: none;
+    }
+    
     body.lock-scroll { 
       overflow: hidden; 
       overscroll-behavior: none; 
     }
     
+    /* Subtask swipe actions */
     .swipe-actions { 
       position: absolute; 
       inset: 0; 
@@ -347,7 +359,17 @@ function patchCSSOnce() {
       pointer-events: none; 
     }
     
-    .swipe-actions .zone { 
+    /* Task card swipe actions */
+    .card-swipe-actions {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      pointer-events: none;
+    }
+    
+    .swipe-actions .zone,
+    .card-swipe-actions .zone { 
       display: flex; 
       align-items: center; 
       padding: 0 12px; 
@@ -356,10 +378,13 @@ function patchCSSOnce() {
       --pulse: 1; 
     }
     
-    .swipe-actions .zone.left { justify-content: flex-start; }
-    .swipe-actions .zone.right { justify-content: flex-end; }
+    .swipe-actions .zone.left,
+    .card-swipe-actions .zone.left { justify-content: flex-start; }
+    .swipe-actions .zone.right,
+    .card-swipe-actions .zone.right { justify-content: flex-end; }
     
-    .swipe-actions .action {
+    .swipe-actions .action,
+    .card-swipe-actions .action {
       pointer-events: auto; 
       width: 44px; 
       height: 44px;
@@ -382,22 +407,40 @@ function patchCSSOnce() {
     }
     
     .swipe-wrap.held .swipe-actions .action,
-    .swipe-wrap[style*="--hold-feedback"] .swipe-actions .action {
+    .card-swipe-wrap.held .card-swipe-actions .action,
+    .swipe-wrap[style*="--hold-feedback"] .swipe-actions .action,
+    .card-swipe-wrap[style*="--hold-feedback"] .card-swipe-actions .action {
       box-shadow: 0 0 0 2px rgba(59,130,246,.4), 0 2px 8px rgba(0,0,0,.12);
       transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse) * 1.05));
     }
     
-    .swipe-wrap[style*="--hold-feedback"] {
+    .swipe-wrap[style*="--hold-feedback"],
+    .card-swipe-wrap[style*="--hold-feedback"] {
       background: rgba(59,130,246,.05);
     }
     
-    .swipe-actions .action.complete { --bg: #16a34a; --fg: white; }
-    .swipe-actions .action.edit { --bg: #f59e0b; --fg: white; }
-    .swipe-actions .action.delete { --bg: #ef4444; --fg: white; }
+    .swipe-actions .action.complete,
+    .card-swipe-actions .action.complete { --bg: #16a34a; --fg: white; }
+    .swipe-actions .action.edit,
+    .card-swipe-actions .action.edit { --bg: #f59e0b; --fg: white; }
+    .swipe-actions .action.delete,
+    .card-swipe-actions .action.delete { --bg: #ef4444; --fg: white; }
+    
+    /* Task completion visual feedback */
+    .task-card.all-completed .task-title {
+      text-decoration: line-through;
+      color: var(--muted, #6b7280);
+    }
+    
+    .task-card.all-completed .badge {
+      background: var(--green, #16a34a);
+    }
     
     @media (prefers-reduced-motion: reduce) {
-      .subtask { transition: none !important; }
-      .swipe-actions .action { transition: opacity 60ms linear; }
+      .subtask,
+      .card-row { transition: none !important; }
+      .swipe-actions .action,
+      .card-swipe-actions .action { transition: opacity 60ms linear; }
     }
   `;
   

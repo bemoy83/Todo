@@ -153,6 +153,102 @@ export function startEditMode(subtaskElement) {
   input.addEventListener('blur', saveEdit);
 }
 
+export function startEditTaskTitle(taskElement) {
+  console.log('Starting edit mode for task title');
+  
+  const card = taskElement.closest('.task-card');
+  const titleEl = card.querySelector('.task-title');
+  if (!titleEl || !card) {
+    console.log('Missing required elements for task edit');
+    return;
+  }
+  
+  // Get task ID from data attribute
+  const taskId = card.dataset.id;
+  
+  console.log('Edit task - taskId:', taskId);
+  
+  // Find the task in the model
+  const task = model.find(x => x.id === taskId);
+  if (!task) {
+    console.log('Task not found in model');
+    return;
+  }
+  
+  const originalTitle = task.title || 'Untitled';
+  console.log('Original title:', originalTitle);
+  
+  // Create input element
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = originalTitle;
+  input.className = 'task-title-edit-input';
+  input.style.cssText = `
+    width: 100%;
+    border: 2px solid #3b82f6;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: inherit;
+    font-family: inherit;
+    font-weight: 800;
+    background: white;
+    outline: none;
+    margin: 0;
+    box-sizing: border-box;
+    -webkit-user-select: text;
+    user-select: text;
+  `;
+  
+  // Replace title element with input
+  titleEl.style.display = 'none';
+  titleEl.parentNode.insertBefore(input, titleEl);
+  
+  // Focus and select all text
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 50);
+  
+  // Save function
+  const saveEdit = () => {
+    const newTitle = input.value.trim();
+    console.log('Saving task edit - new title:', newTitle);
+    
+    if (newTitle && newTitle !== originalTitle) {
+      task.title = newTitle;
+      saveModel();
+      console.log('Task title saved and re-rendering');
+      renderAll();
+      bootBehaviors();
+    } else {
+      console.log('No changes, restoring original title');
+      // Just restore the original display
+      titleEl.style.display = '';
+      input.remove();
+    }
+  };
+  
+  // Cancel function
+  const cancelEdit = () => {
+    console.log('Canceling task title edit');
+    titleEl.style.display = '';
+    input.remove();
+  };
+  
+  // Event listeners
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
+  });
+  
+  input.addEventListener('blur', saveEdit);
+}
+
 // ===== Rendering =====
 export function renderAll(){
   const layer = app ? $("#dragLayer", app) : null;
