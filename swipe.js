@@ -166,11 +166,23 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
 
   // Event handlers
   function onDown(e) {
+    console.log(`${type} swipe onDown triggered on:`, e.target, 'wrap:', wrap);
+    
     if (gesture.drag || gesture.swipe || 
         e.target.closest('.sub-handle') || 
         e.target.closest('.card-handle') ||  // Also exclude card drag handles
-        e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
+        e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) {
+      console.log(`${type} swipe onDown blocked by:`, {
+        drag: gesture.drag,
+        swipe: gesture.swipe,
+        subHandle: !!e.target.closest('.sub-handle'),
+        cardHandle: !!e.target.closest('.card-handle'),
+        other: !!e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')
+      });
+      return;
+    }
 
+    console.log(`${type} swipe starting...`);
     const p = pt(e);
     startX = p.x;
     startY = p.y;
