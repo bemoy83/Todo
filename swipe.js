@@ -1,9 +1,5 @@
-// swipe.js – swipe gestures with targeted DOM updates
-import { 
-  pt, clamp, model, FLAGS, gesture, startEditMode, startEditTaskTitle, 
-  syncTaskCompletion, updateTaskCompletion, updateSubtaskCompletion,
-  removeSubtaskFromDOM, removeTaskFromDOM, saveModel
-} from './core.js';
+// swipe.js – swipe gestures for both subtasks and task cards
+import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture, startEditMode, startEditTaskTitle, syncTaskCompletion } from './core.js';
 import { SWIPE } from './constants.js';
 
 export function enableSwipe() {
@@ -28,8 +24,7 @@ export function enableSwipe() {
   }
 }
 
-// Export these functions so they can be called from core.js when adding new elements
-export function attachSubtaskSwipe(wrap) {
+function attachSubtaskSwipe(wrap) {
   const row = wrap.querySelector('.subtask');
   const actions = wrap.querySelector('.swipe-actions');
   const leftZone = actions?.querySelector('.zone.left');
@@ -50,7 +45,7 @@ export function attachSubtaskSwipe(wrap) {
   attachSwipeToElement(wrap, row, actions, leftZone, rightZone, 'subtask');
 }
 
-export function attachTaskSwipe(wrap) {
+function attachTaskSwipe(wrap) {
   const row = wrap.querySelector('.card-row');
   const actions = wrap.querySelector('.card-swipe-actions');
   const leftZone = actions?.querySelector('.zone.left');
@@ -341,14 +336,13 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
       switch (actionName) {
         case 'delete':
           task.subtasks.splice(subtaskIndex, 1);
-          // Use targeted DOM update instead of full re-render
-          removeSubtaskFromDOM(mainId, subId);
-          saveModel();
+          renderAll();
+          bootBehaviors();
           break;
         case 'complete':
           subtask.done = !subtask.done;
-          // Use targeted DOM update instead of full re-render
-          updateSubtaskCompletion(mainId, subId);
+          renderAll();
+          bootBehaviors();
           break;
         case 'edit':
           closeDrawer();
@@ -366,12 +360,11 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
           if (task.subtasks.length > 0) {
             const allCompleted = task.subtasks.every(st => st.done);
             task.subtasks.forEach(st => st.done = !allCompleted);
-            // Update all subtasks and task completion state
-            task.subtasks.forEach(st => updateSubtaskCompletion(taskId, st.id));
           } else {
             task.completed = !task.completed;
-            updateTaskCompletion(taskId);
           }
+          renderAll();
+          bootBehaviors();
           break;
         case 'edit-title':
           closeDrawer();
@@ -382,9 +375,8 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
             const taskIndex = model.findIndex(x => x.id === taskId);
             if (taskIndex >= 0) {
               model.splice(taskIndex, 1);
-              // Use targeted DOM update instead of full re-render
-              removeTaskFromDOM(taskId);
-              saveModel();
+              renderAll();
+              bootBehaviors();
             }
           }
           break;

@@ -1,6 +1,6 @@
-// core.js – ES Module with targeted DOM updates
+// core.js – ES Module (clean, no window bridges)
 // Exports: setDomRefs, renderAll, bootBehaviors, uid, clamp, model, saveModel
-// Now includes: updateTaskCompletion, updateSubtaskCompletion, addSubtaskToDOM, etc.
+// Imports binder functions so bootBehaviors wires everything without globals.
 
 import { bindCrossSortContainer } from './drag.js';
 import { enableSwipe } from './swipe.js';
@@ -68,211 +68,7 @@ export function loadModel(){
 export let model = loadModel();
 export function saveModel(){ try{ localStorage.setItem('todo:model', JSON.stringify(model)); }catch{} }
 
-// ===== Targeted DOM Update Functions =====
-
-// Update task completion state without full re-render
-export function updateTaskCompletion(taskId) {
-  const task = model.find(x => x.id === taskId);
-  if (!task) return;
-  
-  const card = document.querySelector(`.task-card[data-id="${taskId}"]`);
-  if (!card) return;
-  
-  const taskCompleted = task.completed || (task.subtasks.length > 0 && task.subtasks.every(st => st.done));
-  
-  // Update visual state
-  if (taskCompleted) {
-    card.classList.add('all-completed');
-  } else {
-    card.classList.remove('all-completed');
-  }
-  
-  // Update complete button state
-  const completeBtn = card.querySelector('.action.complete[data-act="complete-all"]');
-  if (completeBtn) {
-    completeBtn.title = taskCompleted ? 'Mark incomplete' : 'Complete task';
-  }
-  
-  saveModel();
-}
-
-// Update subtask completion state
-export function updateSubtaskCompletion(taskId, subtaskId) {
-  const task = model.find(x => x.id === taskId);
-  if (!task) return;
-  
-  const subtask = task.subtasks.find(s => s.id === subtaskId);
-  if (!subtask) return;
-  
-  // Update subtask visual state
-  const subtaskEl = document.querySelector(`.subtask[data-id="${subtaskId}"][data-main-id="${taskId}"]`);
-  if (subtaskEl) {
-    const textEl = subtaskEl.querySelector('.sub-text');
-    if (textEl) {
-      if (subtask.done) {
-        textEl.classList.add('done');
-      } else {
-        textEl.classList.remove('done');
-      }
-    }
-  }
-  
-  // Update parent task completion state
-  syncTaskCompletion(task);
-  updateTaskCompletion(taskId);
-}
-
-// Add new subtask to DOM without full re-render
-export function addSubtaskToDOM(taskId, subtask) {
-  const card = document.querySelector(`.task-card[data-id="${taskId}"]`);
-  if (!card) return;
-  
-  const list = card.querySelector('.subtask-list');
-  const addForm = list?.querySelector('.add-subtask-form');
-  if (!list || !addForm) return;
-  
-  // Create new subtask element
-  const wrap = document.createElement("div");
-  wrap.className = "swipe-wrap";
-  wrap.dataset.id = subtask.id;
-  wrap.dataset.mainId = taskId;
-  wrap.innerHTML = `
-    <div class="swipe-actions" aria-hidden="true">
-      <div class="zone left">
-        <button class="action complete" data-act="complete" title="Complete">✓</button>
-      </div>
-      <div class="zone right">
-        <button class="action edit" data-act="edit" title="Edit">✏</button>
-        <button class="action delete" data-act="delete" title="Delete">×</button>
-      </div>
-    </div>`;
-
-  const row = document.createElement("div");
-  row.className = "subtask";
-  row.dataset.id = subtask.id;
-  row.dataset.mainId = taskId;
-  row.innerHTML = `
-    <div class="sub-handle" aria-label="Drag to move" role="button">⋮⋮</div>
-    <div class="sub-text ${subtask.done ? 'done' : ''}"></div>
-  `;
-  $(".sub-text", row).textContent = subtask.text;
-  wrap.appendChild(row);
-  
-  // Insert before the add form
-  list.insertBefore(wrap, addForm);
-  
-  // Update badge count
-  updateTaskBadge(taskId);
-  
-  // Re-enable swipe for the new element
-  if (FLAGS.swipeGestures) {
-    const { attachSubtaskSwipe } = require('./swipe.js');
-    attachSubtaskSwipe?.(wrap);
-  }
-}
-
-// Remove subtask from DOM
-export function removeSubtaskFromDOM(taskId, subtaskId) {
-  const wrap = document.querySelector(`.swipe-wrap[data-id="${subtaskId}"][data-main-id="${taskId}"]`);
-  if (wrap) {
-    wrap.remove();
-    updateTaskBadge(taskId);
-  }
-}
-
-// Update task badge count
-export function updateTaskBadge(taskId) {
-  const task = model.find(x => x.id === taskId);
-  if (!task) return;
-  
-  const card = document.querySelector(`.task-card[data-id="${taskId}"]`);
-  if (!card) return;
-  
-  const badge = card.querySelector('.badge');
-  if (badge) {
-    if (task.subtasks.length > 0) {
-      badge.textContent = task.subtasks.length;
-      badge.style.display = '';
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-}
-
-// Add new task to DOM
-export function addTaskToDOM(task) {
-  if (!app) return;
-  
-  // Remove empty state if it exists
-  const empty = app.querySelector('.empty');
-  if (empty) {
-    empty.remove();
-  }
-  
-  // Create and prepend new task card
-  const card = renderCard(task);
-  app.insertBefore(card, app.firstChild);
-  
-  // Re-enable behaviors for the new card
-  if (FLAGS.swipeGestures) {
-    // Import and call the swipe function  
-    import('./swipe.js').then(({ attachTaskSwipe, attachSubtaskSwipe }) => {
-      attachTaskSwipe?.(card);
-      // Also attach swipe to any subtasks in the new card
-      const subtaskWraps = card.querySelectorAll('.swipe-wrap');
-      subtaskWraps.forEach(wrap => attachSubtaskSwipe?.(wrap));
-    }).catch(() => {
-      // Fallback: re-enable all swipe behaviors
-      enableSwipe();
-    });
-  }
-}
-
-// Remove task from DOM
-export function removeTaskFromDOM(taskId) {
-  const card = document.querySelector(`.task-card[data-id="${taskId}"]`);
-  if (card) {
-    card.remove();
-    
-    // Show empty state if no tasks remain
-    if (model.length === 0 && app) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.innerHTML = '<div>🎉 All done!</div><div>Add your first task below.</div>';
-      app.appendChild(empty);
-    }
-  }
-}
-
-// Update task title in DOM
-export function updateTaskTitle(taskId, newTitle) {
-  const card = document.querySelector(`.task-card[data-id="${taskId}"]`);
-  if (!card) return;
-  
-  const titleEl = card.querySelector('.task-title');
-  if (titleEl) {
-    titleEl.textContent = newTitle;
-  }
-  
-  // Update aria-label for add subtask input
-  const addInput = card.querySelector('.add-sub-input');
-  if (addInput) {
-    addInput.setAttribute('aria-label', `Add subtask to ${newTitle}`);
-  }
-}
-
-// Update subtask text in DOM
-export function updateSubtaskText(taskId, subtaskId, newText) {
-  const subtaskEl = document.querySelector(`.subtask[data-id="${subtaskId}"][data-main-id="${taskId}"]`);
-  if (!subtaskEl) return;
-  
-  const textEl = subtaskEl.querySelector('.sub-text');
-  if (textEl) {
-    textEl.textContent = newText;
-  }
-}
-
-// ===== Edit functionality with targeted updates =====
+// ===== Edit functionality =====
 export function startEditMode(subtaskElement) {
   console.log('Starting edit mode for subtask');
   
@@ -343,10 +139,9 @@ export function startEditMode(subtaskElement) {
     if (newText && newText !== originalText) {
       subtask.text = newText;
       saveModel();
-      // Use targeted update instead of full re-render
-      updateSubtaskText(mainId, subId, newText);
-      textEl.style.display = '';
-      input.remove();
+      console.log('Saved and re-rendering');
+      renderAll();
+      bootBehaviors();
     } else {
       console.log('No changes, restoring original');
       // Just restore the original display
@@ -439,10 +234,8 @@ export function startEditTaskTitle(taskElement) {
     if (newTitle && newTitle !== originalTitle) {
       task.title = newTitle;
       saveModel();
-      // Use targeted update instead of full re-render
-      updateTaskTitle(taskId, newTitle);
-      titleEl.style.display = '';
-      input.remove();
+      renderAll();
+      bootBehaviors();
     } else {
       // Just restore the original display
       titleEl.style.display = '';
@@ -592,10 +385,7 @@ function bindAdders(){
       const task = { id: uid('m'), title, subtasks: [] };
       model.unshift(task);
       inp.value = '';
-      
-      // Use targeted DOM update instead of full re-render
-      addTaskToDOM(task);
-      saveModel();
+      renderAll(); bootBehaviors();
       
       // Auto-focus the newly created task's subtask input for rapid entry
       setTimeout(() => {
@@ -617,21 +407,19 @@ function bindAdders(){
     const text = (input.value || '').trim();
     if(!text) return;
     const m = model.find(x=>x.id===mainId); if(!m) return;
-    
-    const newSubtask = { id: uid('s'), text, done:false };
-    m.subtasks.push(newSubtask);
+    m.subtasks.push({ id: uid('s'), text, done:false });
+    const oldValue = input.value; // Store for potential restoration
     input.value = '';
+    renderAll(); bootBehaviors();
     
-    // Use targeted DOM update instead of full re-render
-    addSubtaskToDOM(mainId, newSubtask);
-    saveModel();
-    
-    // Restore focus to the same input after adding for rapid entry
+    // Restore focus to the same input after re-render for rapid entry
     setTimeout(() => {
       const taskCard = document.querySelector('.task-card[data-id="' + mainId + '"]');
       const subtaskInput = taskCard?.querySelector('.add-sub-input');
       if (subtaskInput) {
         subtaskInput.focus();
+        // Optionally restore partial input if user was typing
+        // subtaskInput.value = oldValue.replace(text, '').trim();
       }
     }, 50);
   }, { once:false });
