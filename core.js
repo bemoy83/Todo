@@ -32,6 +32,24 @@ export const gesture = { drag: false, swipe: false };
 // ===== Model & persistence =====
 const DEFAULT_MODEL = [];
 export function uid(prefix='id'){ return `${prefix}-${Math.random().toString(36).slice(2,8)}${Date.now().toString(36).slice(-2)}`; }
+
+// Helper function to sync task completion with subtasks
+export function syncTaskCompletion(task) {
+  if (task.subtasks.length === 0) {
+    // No subtasks - keep task.completed as is
+    return;
+  }
+  
+  // Has subtasks - derive completion from subtask state
+  const allSubtasksDone = task.subtasks.every(st => st.done);
+  task.completed = allSubtasksDone;
+}
+
+// Helper function to get current completion state
+export function isTaskCompleted(task) {
+  return task.completed || false;
+}
+
 export function loadModel(){
   try{
     const raw = localStorage.getItem('todo:model');

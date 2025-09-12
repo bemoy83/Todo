@@ -1,5 +1,5 @@
 // swipe.js – swipe gestures for both subtasks and task cards
-import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture, startEditMode, startEditTaskTitle } from './core.js';
+import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture, startEditMode, startEditTaskTitle, syncTaskCompletion } from './core.js';
 import { SWIPE } from './constants.js';
 
 export function enableSwipe() {
@@ -27,8 +27,20 @@ export function enableSwipe() {
 function attachSubtaskSwipe(wrap) {
   const row = wrap.querySelector('.subtask');
   const actions = wrap.querySelector('.swipe-actions');
-  const leftZone = actions.querySelector('.zone.left');
-  const rightZone = actions.querySelector('.zone.right');
+  const leftZone = actions?.querySelector('.zone.left');
+  const rightZone = actions?.querySelector('.zone.right');
+
+  if (!row || !actions || !leftZone || !rightZone) return;
+
+  // Dynamically align action buttons with subtask row height (same as task cards)
+  const alignActions = () => {
+    const rowRect = row.getBoundingClientRect();
+    actions.style.height = `${rowRect.height}px`;
+    actions.style.setProperty('--subtask-row-height', `${rowRect.height}px`);
+  };
+  
+  alignActions();
+  window.addEventListener('resize', alignActions);
 
   attachSwipeToElement(wrap, row, actions, leftZone, rightZone, 'subtask');
 }
@@ -408,18 +420,33 @@ function patchCSSOnce() {
   const style = document.createElement('style');
   style.id = 'swipeSimplePatch';
   style.textContent = `
+    /* Subtask and task card container positioning */
+    .swipe-wrap {
+      position: relative;
+      border-radius: var(--radius-sm, 10px);
+    }
+    
+    .card-swipe-wrap {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    /* Subtask swipe styles */
     .subtask { 
       will-change: transform; 
       touch-action: pan-y;
       position: relative;
       background: white;
       transition: transform 140ms ease-out, box-shadow 140ms ease-out;
+      border-radius: var(--radius-sm, 10px);
+      z-index: 1;
     }
     
     .swipe-wrap.swiping .subtask { 
       touch-action: none; 
     }
     
+    /* Task card swipe styles */
     .card-row {
       will-change: transform;
       touch-action: pan-y;
@@ -444,15 +471,23 @@ function patchCSSOnce() {
       overscroll-behavior: none; 
     }
     
+    /* Subtask swipe actions - aligned with individual subtask rows */
     .swipe-actions { 
       position: absolute; 
-      inset: 0; 
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--subtask-row-height, 56px);
       display: grid; 
       grid-template-columns: 1fr 1fr; 
       pointer-events: none;
       border-radius: var(--radius-sm, 10px);
+      background: #f8f9fa;
+      overflow: hidden;
+      z-index: 0;
     }
     
+    /* Task card swipe actions - aligned with card-row only */
     .card-swipe-actions {
       position: absolute;
       top: 0;
