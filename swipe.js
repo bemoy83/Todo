@@ -11,8 +11,6 @@ export function enableSwipe() {
   const subtaskWraps = document.querySelectorAll('.swipe-wrap');
   const cardWraps = document.querySelectorAll('.card-swipe-wrap');
   
-  console.log('Enabling swipe - found', subtaskWraps.length, 'subtask wraps and', cardWraps.length, 'card wraps');
-  
   subtaskWraps.forEach(wrap => attachSubtaskSwipe(wrap));
   cardWraps.forEach(wrap => attachTaskSwipe(wrap));
   
@@ -36,18 +34,12 @@ function attachSubtaskSwipe(wrap) {
 }
 
 function attachTaskSwipe(wrap) {
-  console.log('Attaching task swipe to:', wrap);
   const row = wrap.querySelector('.card-row');
   const actions = wrap.querySelector('.card-swipe-actions');
   const leftZone = actions?.querySelector('.zone.left');
   const rightZone = actions?.querySelector('.zone.right');
 
-  console.log('Task swipe elements:', { row, actions, leftZone, rightZone });
-
-  if (!row || !actions || !leftZone || !rightZone) {
-    console.warn('Missing elements for task swipe:', { row, actions, leftZone, rightZone });
-    return;
-  }
+  if (!row || !actions || !leftZone || !rightZone) return;
 
   // Dynamically align action buttons with card-row height
   const alignActions = () => {
@@ -56,19 +48,14 @@ function attachTaskSwipe(wrap) {
     actions.style.setProperty('--card-row-height', `${rowRect.height}px`);
   };
   
-  // Align on initial load and when window resizes
   alignActions();
   window.addEventListener('resize', alignActions);
 
-  console.log('Successfully attaching task swipe to card');
   attachSwipeToElement(wrap, row, actions, leftZone, rightZone, 'task');
 }
 
 function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
-  if (!row || !actions || !leftZone || !rightZone) {
-    console.log(`Missing elements for ${type} swipe:`, { row, actions, leftZone, rightZone });
-    return;
-  }
+  if (!row || !actions || !leftZone || !rightZone) return;
 
   // Gesture state
   let startX = 0, startY = 0, currentX = 0;
@@ -91,7 +78,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   // Velocity tracking
   function trackVelocity(x, time) {
     velocityTracker.push({ x, time });
-    // Keep only recent samples
     const cutoff = time - SWIPE.FLING_EXPIRE;
     velocityTracker = velocityTracker.filter(s => s.time >= cutoff);
   }
@@ -143,7 +129,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     cleanup();
   }
 
-  // Resistance for over-pulling
   function applyResistance(x) {
     const maxLeft = getLeftWidth() * SWIPE.MAX_OVEREXTEND;
     const maxRight = getRightWidth() * SWIPE.MAX_OVEREXTEND;
@@ -153,17 +138,14 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     return x;
   }
 
-  // Hold detection with industry-standard timing
   function startHoldTimer() {
     clearHoldTimer();
-    console.log(`Starting hold timer for ${SWIPE.HOLD_MS}ms...`);
     holdTimer = setTimeout(() => {
       if (captured && tracking) {
         isHolding = true;
         wrap.classList.add('held');
         wrap.style.setProperty('--hold-feedback', '1');
-        console.log('Hold detected!');
-        haptic(); // Haptic feedback on hold detection
+        haptic();
       }
     }, SWIPE.HOLD_MS);
   }
@@ -175,7 +157,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     }
   }
 
-  // Visual feedback
   function updateVisuals(x) {
     const leftReveal = clamp(x / Math.max(getLeftWidth(), 1), 0, 1);
     const rightReveal = clamp(-x / Math.max(getRightWidth(), 1), 0, 1);
@@ -189,25 +170,12 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     setTimeout(() => zone.style.setProperty('--pulse', '1'), 180);
   }
 
-  // Event handlers
   function onDown(e) {
-    console.log(`${type} swipe onDown triggered on:`, e.target, 'wrap:', wrap);
-    
     if (gesture.drag || gesture.swipe || 
         e.target.closest('.sub-handle') || 
-        e.target.closest('.card-handle') ||  // Also exclude card drag handles
-        e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) {
-      console.log(`${type} swipe onDown blocked by:`, {
-        drag: gesture.drag,
-        swipe: gesture.swipe,
-        subHandle: !!e.target.closest('.sub-handle'),
-        cardHandle: !!e.target.closest('.card-handle'),
-        other: !!e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')
-      });
-      return;
-    }
+        e.target.closest('.card-handle') ||
+        e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
 
-    console.log(`${type} swipe starting...`);
     const p = pt(e);
     startX = p.x;
     startY = p.y;
@@ -238,7 +206,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     
     currentX = p.x;
 
-    // Capture decision
     if (!captured) {
       const scrolled = Math.abs(((document.scrollingElement || document.documentElement).scrollTop || 0) - scrollYAtStart) > 2;
       
@@ -247,23 +214,17 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
         return;
       }
       
-      // Check if we've moved enough to be intentional
       if (Math.abs(dx) >= SWIPE.MIN_INTENT_DISTANCE) {
         captured = true;
         lockScroll();
         e.preventDefault();
-        
-        // Start hold timer with industry-standard timing
         startHoldTimer();
-        console.log('Swipe captured at', Math.abs(dx), 'px - hold timer started');
       } else {
         return;
       }
     }
 
     e.preventDefault();
-    
-    // Track velocity for fling detection
     trackVelocity(p.x, now);
     
     const newX = applyResistance(openX + dx);
@@ -283,9 +244,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     
     const dx = currentX - startX;
     
-    // Priority 1: FLING - Fast velocity-based gesture (immediate execution)
     if (isFling()) {
-      console.log('Fling detected - executing immediately, velocity:', getVelocity().toFixed(2), 'px/ms');
       if (dx > 0) {
         executeAction(type === 'task' ? 'complete-all' : 'complete', leftZone);
       } else {
@@ -294,9 +253,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
       return;
     }
     
-    // Priority 2: HOLD - User held for required time (snap open for action selection)
     if (isHolding) {
-      console.log('Hold completed - snapping open for action selection');
       const targetX = dx > 0 ? getLeftWidth() : -getRightWidth();
       animateTo(targetX);
       openX = targetX;
@@ -306,10 +263,8 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
       return;
     }
     
-    // Priority 3: DELIBERATE SWIPE - Slow but intentional movement (execute based on distance)
     const distance = Math.abs(dx);
     if (distance >= SWIPE.DELIBERATE_MIN) {
-      console.log('Deliberate swipe - executing based on distance:', distance);
       if (dx > 0) {
         executeAction(type === 'task' ? 'complete-all' : 'complete', leftZone);
       } else {
@@ -318,8 +273,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
       return;
     }
     
-    // Priority 4: CANCEL - Not enough intent, return to original position
-    console.log('Insufficient intent - canceling gesture');
     animateTo(0);
     openX = 0;
     updateVisuals(0);
@@ -356,8 +309,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   }
 
   function performAction(actionName) {
-    console.log('performAction called with:', actionName, 'for type:', type);
-    
     if (type === 'subtask') {
       const mainId = wrap.closest('.task-card').dataset.id;
       const subId = row.dataset.id;
@@ -382,7 +333,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
           bootBehaviors();
           break;
         case 'edit':
-          console.log('Edit subtask action triggered');
           closeDrawer();
           startEditMode(row);
           break;
@@ -395,25 +345,20 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
       
       switch (actionName) {
         case 'complete-all':
-          console.log('Complete all subtasks action triggered');
           if (task.subtasks.length > 0) {
-            // If task has subtasks, toggle all subtasks
             const allCompleted = task.subtasks.every(st => st.done);
             task.subtasks.forEach(st => st.done = !allCompleted);
           } else {
-            // If no subtasks, toggle the task completion state directly
             task.completed = !task.completed;
           }
           renderAll();
           bootBehaviors();
           break;
         case 'edit-title':
-          console.log('Edit task title action triggered');
           closeDrawer();
           startEditTaskTitle(row);
           break;
         case 'delete-task':
-          console.log('Delete task action triggered');
           if (confirm(`Delete "${task.title}" and all its subtasks?`)) {
             const taskIndex = model.findIndex(x => x.id === taskId);
             if (taskIndex >= 0) {
@@ -441,21 +386,17 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   row.addEventListener('pointerdown', onDown, { passive: true });
   row.addEventListener('click', closeDrawer);
   
-  // Handle action button clicks
   actions.addEventListener('click', (e) => {
     const button = e.target.closest('.action');
     if (!button) return;
     
-    console.log('Action button clicked:', button.dataset.act);
     performAction(button.dataset.act);
     
-    // Don't close drawer immediately for edit action - let the edit mode handle it
     if (button.dataset.act !== 'edit' && button.dataset.act !== 'edit-title') {
       closeDrawer();
     }
   });
   
-  // Close drawer when clicking outside
   document.addEventListener('pointerdown', (e) => {
     if (!wrap.contains(e.target)) closeDrawer();
   });
@@ -467,7 +408,6 @@ function patchCSSOnce() {
   const style = document.createElement('style');
   style.id = 'swipeSimplePatch';
   style.textContent = `
-    /* Subtask swipe styles */
     .subtask { 
       will-change: transform; 
       touch-action: pan-y;
@@ -480,7 +420,6 @@ function patchCSSOnce() {
       touch-action: none; 
     }
     
-    /* Task card swipe styles */
     .card-row {
       will-change: transform;
       touch-action: pan-y;
@@ -495,10 +434,9 @@ function patchCSSOnce() {
       touch-action: none;
     }
     
-    /* Enhanced swiping feedback */
     .swipe-wrap.swiping .subtask,
     .card-swipe-wrap.swiping .card-row {
-      transition: none; /* Disable transitions during active swiping */
+      transition: none;
     }
     
     body.lock-scroll { 
@@ -506,7 +444,6 @@ function patchCSSOnce() {
       overscroll-behavior: none; 
     }
     
-    /* Subtask swipe actions */
     .swipe-actions { 
       position: absolute; 
       inset: 0; 
@@ -516,20 +453,19 @@ function patchCSSOnce() {
       border-radius: var(--radius-sm, 10px);
     }
     
-    /* Task card swipe actions - aligned with card-row only */
     .card-swipe-actions {
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
-      height: var(--card-row-height, 60px); /* Will be set dynamically to match card-row */
+      height: var(--card-row-height, 60px);
       display: grid;
       grid-template-columns: 1fr 1fr;
       pointer-events: none;
       border-radius: var(--radius, 12px) var(--radius, 12px) 0 0;
-      z-index: 0; /* Behind the card row */
-      background: #f8f9fa; /* Subtle gray background for contrast */
-      overflow: hidden; /* Prevent corner bleeding */
+      z-index: 0;
+      background: #f8f9fa;
+      overflow: hidden;
     }
     
     .swipe-actions .zone,
@@ -540,15 +476,14 @@ function patchCSSOnce() {
       gap: 8px; 
       --reveal: 0; 
       --pulse: 1;
-      min-height: inherit; /* Inherit the height from parent */
+      min-height: inherit;
       transition: background-color 200ms ease;
     }
     
-    /* Dynamic background colors with fade support */
     .swipe-actions .zone.left,
     .card-swipe-actions .zone.left { 
       justify-content: flex-start;
-      background: rgba(22, 163, 74, calc(var(--reveal) * 1.0 * var(--fade, 1))); /* Green at full opacity */
+      background: rgba(22, 163, 74, calc(var(--reveal) * 1.0 * var(--fade, 1)));
       opacity: var(--fade, 1);
       transition: opacity 150ms ease, background-color 150ms ease;
     }
@@ -556,7 +491,7 @@ function patchCSSOnce() {
     .swipe-actions .zone.right,
     .card-swipe-actions .zone.right { 
       justify-content: flex-end;
-      background: rgba(239, 68, 68, calc(var(--reveal) * 1.0 * var(--fade, 1))); /* Red at full opacity */
+      background: rgba(239, 68, 68, calc(var(--reveal) * 1.0 * var(--fade, 1)));
       opacity: var(--fade, 1);
       transition: opacity 150ms ease, background-color 150ms ease;
     }
@@ -584,7 +519,6 @@ function patchCSSOnce() {
       transition: transform 140ms ease, opacity 140ms ease;
     }
     
-    /* Enhanced hold feedback */
     .swipe-wrap.held .swipe-actions .action,
     .card-swipe-wrap.held .card-swipe-actions .action,
     .swipe-wrap[style*="--hold-feedback"] .swipe-actions .action,
@@ -599,7 +533,6 @@ function patchCSSOnce() {
       border-radius: var(--radius, 12px);
     }
     
-    /* Action button colors */
     .swipe-actions .action.complete,
     .card-swipe-actions .action.complete { --bg: #16a34a; --fg: white; }
     .swipe-actions .action.edit,
@@ -607,7 +540,6 @@ function patchCSSOnce() {
     .swipe-actions .action.delete,
     .card-swipe-actions .action.delete { --bg: #ef4444; --fg: white; }
     
-    /* Task completion visual feedback */
     .task-card.all-completed .task-title {
       text-decoration: line-through;
       color: var(--muted, #6b7280);
@@ -617,7 +549,6 @@ function patchCSSOnce() {
       background: var(--green, #16a34a);
     }
     
-    /* Ensure task card background doesn't interfere */
     .task-card {
       position: relative;
       overflow: hidden;

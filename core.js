@@ -212,16 +212,13 @@ export function startEditTaskTitle(taskElement) {
   // Save function
   const saveEdit = () => {
     const newTitle = input.value.trim();
-    console.log('Saving task edit - new title:', newTitle);
     
     if (newTitle && newTitle !== originalTitle) {
       task.title = newTitle;
       saveModel();
-      console.log('Task title saved and re-rendering');
       renderAll();
       bootBehaviors();
     } else {
-      console.log('No changes, restoring original title');
       // Just restore the original display
       titleEl.style.display = '';
       input.remove();
@@ -230,7 +227,6 @@ export function startEditTaskTitle(taskElement) {
   
   // Cancel function
   const cancelEdit = () => {
-    console.log('Canceling task title edit');
     titleEl.style.display = '';
     input.remove();
   };
