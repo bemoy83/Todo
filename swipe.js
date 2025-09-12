@@ -1,6 +1,4 @@
-// swipe.js – SAFE FALLBACK VERSION (original logic, no gesture-utils dependency)
-// Use this to get your app working again immediately
-
+// swipe.js – swipe gestures for both subtasks and task cards
 import { 
   pt, clamp, model, FLAGS, gesture, startEditMode, startEditTaskTitle, 
   syncTaskCompletion, updateTaskCompletion, updateSubtaskCompletion,
@@ -75,7 +73,7 @@ if (!row || !actions || !leftZone || !rightZone) return;
 function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   if (!row || !actions || !leftZone || !rightZone) return;
 
-  // Gesture state (original implementation)
+  // Gesture state
   let startX = 0, startY = 0, currentX = 0;
   let openX = 0; // Current open position
   let tracking = false, captured = false;
@@ -342,11 +340,13 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
       switch (actionName) {
         case 'delete':
           task.subtasks.splice(subtaskIndex, 1);
+          // Use targeted DOM update instead of full re-render
           removeSubtaskFromDOM(mainId, subId);
           saveModel();
           break;
         case 'complete':
           subtask.done = !subtask.done;
+          // Use targeted DOM update instead of full re-render
           updateSubtaskCompletion(mainId, subId);
           saveModel();
           break;
@@ -361,11 +361,12 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
       
       if (!task) return;
       
-      switch (actionName) {
+switch (actionName) {
         case 'complete-all':
           if (task.subtasks.length > 0) {
             const allCompleted = task.subtasks.every(st => st.done);
             task.subtasks.forEach(st => st.done = !allCompleted);
+            // Update all subtasks and task completion state
             task.subtasks.forEach(st => updateSubtaskCompletion(taskId, st.id));
           } else {
             task.completed = !task.completed;
@@ -382,6 +383,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
             const taskIndex = model.findIndex(x => x.id === taskId);
             if (taskIndex >= 0) {
               model.splice(taskIndex, 1);
+              // Use targeted DOM update instead of full re-render
               removeTaskFromDOM(taskId);
               saveModel();
             }

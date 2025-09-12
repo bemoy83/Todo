@@ -1,9 +1,12 @@
-// drag.js — SAFE FALLBACK VERSION (original logic, no gesture-utils dependency)
-// Use this to get your app working again immediately
+// drag.js — clean ESM: drag to reorder (cards + subtasks)
+// Fixes:
+//  - Allows dropping at END of any list (placeholder sits above add-sub input)
+//  - Keeps mid-list reordering intact
+//  - Smooth adaptive follow + coalesced pointer events
+//  - Lighter ghost shadow + touch-action hygiene
 
 import { $, $$, pt, clamp, model, renderAll, bootBehaviors, gesture } from './core.js';
 import { DRAG } from './constants.js';
-
 const { HOLD_MS, JITTER_PX, GATE, FORCE, FOLLOW_MIN, FOLLOW_MAX, SPEED_GAIN, GAP_GAIN, SNAP_EPS } = DRAG;
 
 export function bindCrossSortContainer() {
@@ -85,7 +88,7 @@ export function bindCrossSortContainer() {
     const appRect = app.getBoundingClientRect();
     const pointerCY = p.y - appRect.top;
     prevTargetY = targetY;
-    targetY = pointerCY - anchorY;
+    targetY = pointerCY - anchorY; // no rounding; we quantize at render
   }
 
   function startDrag(p) {
@@ -101,7 +104,7 @@ export function bindCrossSortContainer() {
     ghost.style.setProperty('--ghost-h', r.height);
     ghost.style.width = r.width + 'px';
     ghost.style.height = r.height + 'px';
-    ghost.style.willChange = 'transform, opacity';
+    ghost.style.willChange = 'transform, opacity'; // GPU hint
     gw = r.width; gh = r.height;
 
     const wrap = drag.closest('.swipe-wrap');
@@ -131,6 +134,32 @@ export function bindCrossSortContainer() {
     if (!ticking) { ticking = true; requestAnimationFrame(step); }
   }
 
+  function insertIntoListByGate(targetList, ghostCenterY, appRect){
+    const anchor = tailAnchor(targetList);
+    const rows = getRows(targetList);
+
+    if (rows.length === 0) {
+      // Empty list → placeholder sits above the add row
+      anchor ? targetList.insertBefore(ph, anchor) : targetList.appendChild(ph);
+      return;
+    }
+
+    let placed = false;
+    for (const n of rows) {
+      const content = n.querySelector('.subtask');
+      const r = content.getBoundingClientRect();
+      const gateTop = (r.top - appRect.top) + r.height * GATE;
+      const gateBot = (r.bottom - appRect.top) - r.height * GATE;
+      if (ghostCenterY <= gateTop) { targetList.insertBefore(ph, n); placed = true; break; }
+      if (ghostCenterY >= gateBot) { continue; }
+    }
+
+    // Not placed mid-list → at end, just above add row
+    if (!placed) {
+      anchor ? targetList.insertBefore(ph, anchor) : targetList.appendChild(ph);
+    }
+  }
+
   function step(now) {
     if (!drag) { ticking = false; return; }
 
@@ -139,7 +168,7 @@ export function bindCrossSortContainer() {
 
     // Adaptive alpha
     const gap = Math.abs(targetY - smoothY);
-    const vel = Math.abs(targetY - prevStepY) / dt;
+    const vel = Math.abs(targetY - prevStepY) / dt; // px/ms
     let alpha = FOLLOW_MIN + GAP_GAIN * gap + SPEED_GAIN * (vel * 1000);
     if (alpha > FOLLOW_MAX) alpha = FOLLOW_MAX;
 
@@ -149,8 +178,24 @@ export function bindCrossSortContainer() {
     const renderY = Math.abs(targetY - smoothY) < SNAP_EPS ? targetY : smoothY;
     ghost.style.transform = `translate3d(0,${renderY}px,0)`;
 
-    // Autoscroll
-    handleAutoScroll(renderY);
+    // Autoscroll near viewport edges
+    (function () {
+      try {
+        const gr = ghost.getBoundingClientRect();
+        const doc = document.scrollingElement || document.documentElement;
+        const vh = window.innerHeight || doc.clientHeight || 0;
+        if (!vh || !gr) return;
+        const EDGE = 56, MAX = 18;
+        const topGap = gr.top, bottomGap = vh - gr.bottom;
+        const ramp = g => Math.min(1, Math.max(0, (EDGE - g) / EDGE)) ** 2;
+        const willDown = targetY >= prevTargetY;
+        const moved = Math.abs(targetY - prevTargetY) > 2;
+        let dy = 0;
+        if (moved && !willDown && topGap < EDGE && doc.scrollTop > 0) dy = -Math.min(MAX, MAX * ramp(topGap));
+        else if (moved && willDown && bottomGap < EDGE && (doc.scrollTop + vh) < doc.scrollHeight) dy = Math.min(MAX, MAX * ramp(bottomGap));
+        if (dy) window.scrollBy(0, Math.round(dy));
+      } catch {}
+    })();
 
     const appRect = app.getBoundingClientRect();
     const ghostCenterY = (renderY) + gh / 2;
@@ -187,6 +232,7 @@ export function bindCrossSortContainer() {
     let moved = false;
 
     if (dirDown && after) {
+      // move downward one slot, but never past the add row
       const content = after.querySelector('.subtask');
       const ar = content.getBoundingClientRect();
       const gate = (ar.top - appRect.top) + ar.height * GATE;
@@ -194,11 +240,12 @@ export function bindCrossSortContainer() {
       if (ghostCenterY >= gate || ghostCenterY >= forceGate) {
         const anchor = tailAnchor(targetList);
         const next = after.nextElementSibling;
-        const ref = (next && next !== anchor) ? next : anchor;
+        const ref = (next && next !== anchor) ? next : anchor; // never pass input
         targetList.insertBefore(ph, ref);
         moved = true;
       }
     } else if (dirDown && !after) {
+      // At the end → allow landing above input even if list has rows
       const rows = getRows(targetList);
       const last = rows[rows.length - 1];
       if (last) {
@@ -212,6 +259,7 @@ export function bindCrossSortContainer() {
         }
       }
     } else if (!dirDown && before) {
+      // move upward one slot
       const content = before.querySelector('.subtask');
       const br = content.getBoundingClientRect();
       const gate = (br.bottom - appRect.top) - br.height * GATE;
@@ -228,48 +276,6 @@ export function bindCrossSortContainer() {
     }
 
     requestAnimationFrame(step);
-  }
-
-  function handleAutoScroll(renderY) {
-    try {
-      const gr = { top: renderY, bottom: renderY + gh };
-      const doc = document.scrollingElement || document.documentElement;
-      const vh = window.innerHeight || doc.clientHeight || 0;
-      if (!vh || !gr) return;
-      const EDGE = 56, MAX = 18;
-      const topGap = gr.top, bottomGap = vh - gr.bottom;
-      const ramp = g => Math.min(1, Math.max(0, (EDGE - g) / EDGE)) ** 2;
-      const willDown = targetY >= prevTargetY;
-      const moved = Math.abs(targetY - prevTargetY) > 2;
-      let dy = 0;
-      if (moved && !willDown && topGap < EDGE && doc.scrollTop > 0) dy = -Math.min(MAX, MAX * ramp(topGap));
-      else if (moved && willDown && bottomGap < EDGE && (doc.scrollTop + vh) < doc.scrollHeight) dy = Math.min(MAX, MAX * ramp(bottomGap));
-      if (dy) window.scrollBy(0, Math.round(dy));
-    } catch {}
-  }
-
-  function insertIntoListByGate(targetList, ghostCenterY, appRect){
-    const anchor = tailAnchor(targetList);
-    const rows = getRows(targetList);
-
-    if (rows.length === 0) {
-      anchor ? targetList.insertBefore(ph, anchor) : targetList.appendChild(ph);
-      return;
-    }
-
-    let placed = false;
-    for (const n of rows) {
-      const content = n.querySelector('.subtask');
-      const r = content.getBoundingClientRect();
-      const gateTop = (r.top - appRect.top) + r.height * GATE;
-      const gateBot = (r.bottom - appRect.top) - r.height * GATE;
-      if (ghostCenterY <= gateTop) { targetList.insertBefore(ph, n); placed = true; break; }
-      if (ghostCenterY >= gateBot) { continue; }
-    }
-
-    if (!placed) {
-      anchor ? targetList.insertBefore(ph, anchor) : targetList.appendChild(ph);
-    }
   }
 
   function onPointerUp() {
@@ -317,7 +323,7 @@ export function bindCrossSortContainer() {
     window.removeEventListener('pointermove', onPointerMove);
   }
 
-  // ===== Card drag (original implementation) =====
+  // ===== Card drag (parent reorder) — uses same smoothing tweaks =====
   function onCardPointerDown(e) {
     if (gesture.swipe || gesture.drag) return;
     const handle = e.target.closest('.card-handle');
@@ -406,8 +412,9 @@ export function bindCrossSortContainer() {
   function cardStep() {
     if (!cghost) { cardTicking = false; return; }
 
+    // adaptive smoothing for cards too
     const gap = Math.abs(ctargetY - csmoothY);
-    const vel = Math.abs(ctargetY - (csmoothY)) / 16;
+    const vel = Math.abs(ctargetY - (csmoothY)) / 16; // rough; frames are ~16ms
     let alpha = FOLLOW_MIN + GAP_GAIN * gap + SPEED_GAIN * (vel * 1000);
     if (alpha > FOLLOW_MAX) alpha = FOLLOW_MAX;
     csmoothY += (ctargetY - csmoothY) * alpha;
@@ -415,32 +422,25 @@ export function bindCrossSortContainer() {
     const renderY = Math.abs(ctargetY - csmoothY) < SNAP_EPS ? ctargetY : csmoothY;
     cghost.style.transform = `translate3d(0,${renderY}px,0)`;
 
-    // Card autoscroll and placement logic (same as original)
-    handleCardAutoScroll(renderY);
-    updateCardPlacement(renderY);
+    // Autoscroll
+    (function () {
+      try {
+        const gr = cghost.getBoundingClientRect();
+        const doc = document.scrollingElement || document.documentElement;
+        const vh = window.innerHeight || doc.clientHeight || 0;
+        if (!vh || !gr) return;
+        const EDGE = 56, MAX = 18;
+        const topGap = gr.top, bottomGap = vh - gr.bottom;
+        const ramp = g => Math.min(1, Math.max(0, (EDGE - g) / EDGE)) ** 2;
+        const willDown = ctargetY >= cprevTargetY;
+        const moved = Math.abs(ctargetY - cprevTargetY) > 2;
+        let dy = 0;
+        if (moved && !willDown && topGap < EDGE && doc.scrollTop > 0) dy = -Math.min(MAX, MAX * ramp(topGap));
+        else if (moved && willDown && bottomGap < EDGE && (doc.scrollTop + vh) < doc.scrollHeight) dy = Math.min(MAX, MAX * ramp(bottomGap));
+        if (dy) window.scrollBy(0, Math.round(dy));
+      } catch {}
+    })();
 
-    requestAnimationFrame(cardStep);
-  }
-
-  function handleCardAutoScroll(renderY) {
-    try {
-      const gr = { top: renderY, bottom: renderY + cgh };
-      const doc = document.scrollingElement || document.documentElement;
-      const vh = window.innerHeight || doc.clientHeight || 0;
-      if (!vh || !gr) return;
-      const EDGE = 56, MAX = 18;
-      const topGap = gr.top, bottomGap = vh - gr.bottom;
-      const ramp = g => Math.min(1, Math.max(0, (EDGE - g) / EDGE)) ** 2;
-      const willDown = ctargetY >= cprevTargetY;
-      const moved = Math.abs(ctargetY - cprevTargetY) > 2;
-      let dy = 0;
-      if (moved && !willDown && topGap < EDGE && doc.scrollTop > 0) dy = -Math.min(MAX, MAX * ramp(topGap));
-      else if (moved && willDown && bottomGap < EDGE && (doc.scrollTop + vh) < doc.scrollHeight) dy = Math.min(MAX, MAX * ramp(bottomGap));
-      if (dy) window.scrollBy(0, Math.round(dy));
-    } catch {}
-  }
-
-  function updateCardPlacement(renderY) {
     const appRect = app.getBoundingClientRect();
     const ghostCenterY = renderY + cgh / 2;
 
@@ -478,6 +478,8 @@ export function bindCrossSortContainer() {
       const phr = cph.getBoundingClientRect();
       cslotOriginCenterY = (phr.top - appRect.top) + phr.height / 2;
     }
+
+    requestAnimationFrame(cardStep);
   }
 
   function onCardPointerUp() {
