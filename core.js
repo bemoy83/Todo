@@ -292,7 +292,15 @@ function renderCard(m){
     <div class="subtask-list"></div>`;
 
   $(".task-title", card).textContent = m.title;
-  $(".badge", card).textContent = m.subtasks.length;
+  
+  // Only show badge if there are subtasks
+  const badge = $(".badge", card);
+  if (m.subtasks.length > 0) {
+    badge.textContent = m.subtasks.length;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
 
   // Add completed class if task is completed
   if (taskCompleted) {
@@ -364,10 +372,18 @@ function bindAdders(){
       model.unshift(task);
       inp.value = '';
       renderAll(); bootBehaviors();
+      
+      // Auto-focus the newly created task's subtask input for rapid entry
+      setTimeout(() => {
+        const newTaskCard = document.querySelector('.task-card[data-id="' + task.id + '"]');
+        const subtaskInput = newTaskCard?.querySelector('.add-sub-input');
+        subtaskInput?.focus();
+      }, 100);
     });
     form._bound = true;
   }
-  // Delegate for per-card subtask add
+  
+  // Delegate for per-card subtask add with focus retention
   app?.addEventListener('submit', function(e){
     const f = e.target.closest('.add-subtask-form');
     if(!f) return;
@@ -378,8 +394,20 @@ function bindAdders(){
     if(!text) return;
     const m = model.find(x=>x.id===mainId); if(!m) return;
     m.subtasks.push({ id: uid('s'), text, done:false });
+    const oldValue = input.value; // Store for potential restoration
     input.value = '';
     renderAll(); bootBehaviors();
+    
+    // Restore focus to the same input after re-render for rapid entry
+    setTimeout(() => {
+      const taskCard = document.querySelector('.task-card[data-id="' + mainId + '"]');
+      const subtaskInput = taskCard?.querySelector('.add-sub-input');
+      if (subtaskInput) {
+        subtaskInput.focus();
+        // Optionally restore partial input if user was typing
+        // subtaskInput.value = oldValue.replace(text, '').trim();
+      }
+    }, 50);
   }, { once:false });
 }
 
