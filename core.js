@@ -271,13 +271,13 @@ function renderCard(m){
   card.className = "task-card card-swipe-wrap";  // Add card-swipe-wrap class to existing task-card
   card.dataset.id = m.id;
   
-  // Determine if all subtasks are completed
-  const allCompleted = m.subtasks.length > 0 && m.subtasks.every(st => st.done);
+  // Determine if task is completed (either has completed property OR all subtasks are done)
+  const taskCompleted = m.completed || (m.subtasks.length > 0 && m.subtasks.every(st => st.done));
   
   card.innerHTML = `
     <div class="card-swipe-actions" aria-hidden="true">
       <div class="zone left">
-        <button class="action complete" data-act="complete-all" title="${allCompleted ? 'Mark incomplete' : 'Complete all'}">✓</button>
+        <button class="action complete" data-act="complete-all" title="${taskCompleted ? 'Mark incomplete' : 'Complete task'}">✓</button>
       </div>
       <div class="zone right">
         <button class="action edit" data-act="edit-title" title="Edit task">✏</button>
@@ -294,8 +294,8 @@ function renderCard(m){
   $(".task-title", card).textContent = m.title;
   $(".badge", card).textContent = m.subtasks.length;
 
-  // Add completed class if all subtasks are done
-  if (allCompleted) {
+  // Add completed class if task is completed
+  if (taskCompleted) {
     card.classList.add('all-completed');
   }
 

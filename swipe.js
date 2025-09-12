@@ -396,9 +396,14 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
       switch (actionName) {
         case 'complete-all':
           console.log('Complete all subtasks action triggered');
-          const allCompleted = task.subtasks.length > 0 && task.subtasks.every(st => st.done);
-          // Toggle all subtasks to opposite state
-          task.subtasks.forEach(st => st.done = !allCompleted);
+          if (task.subtasks.length > 0) {
+            // If task has subtasks, toggle all subtasks
+            const allCompleted = task.subtasks.every(st => st.done);
+            task.subtasks.forEach(st => st.done = !allCompleted);
+          } else {
+            // If no subtasks, toggle the task completion state directly
+            task.completed = !task.completed;
+          }
           renderAll();
           bootBehaviors();
           break;
@@ -543,7 +548,7 @@ function patchCSSOnce() {
     .swipe-actions .zone.left,
     .card-swipe-actions .zone.left { 
       justify-content: flex-start;
-      background: rgba(22, 163, 74, calc(var(--reveal) * 0.3 * var(--fade, 1))); /* Green with reveal and fade */
+      background: rgba(22, 163, 74, calc(var(--reveal) * 1.0 * var(--fade, 1))); /* Green at full opacity */
       opacity: var(--fade, 1);
       transition: opacity 150ms ease, background-color 150ms ease;
     }
@@ -551,7 +556,7 @@ function patchCSSOnce() {
     .swipe-actions .zone.right,
     .card-swipe-actions .zone.right { 
       justify-content: flex-end;
-      background: rgba(239, 68, 68, calc(var(--reveal) * 0.3 * var(--fade, 1))); /* Red with reveal and fade */
+      background: rgba(239, 68, 68, calc(var(--reveal) * 1.0 * var(--fade, 1))); /* Red at full opacity */
       opacity: var(--fade, 1);
       transition: opacity 150ms ease, background-color 150ms ease;
     }
