@@ -83,7 +83,9 @@ function bindAdders(){
       const task = { id: uid('m'), title, subtasks: [] };
       model.unshift(task);
       inp.value = '';
-      renderAll(); bootBehaviors();
+      renderAll().then(() => {
+        bootBehaviors();
+      });
       
       // Auto-focus the newly created task's subtask input for rapid entry
       setTimeout(() => {
@@ -108,7 +110,9 @@ function bindAdders(){
     m.subtasks.push({ id: uid('s'), text, done:false });
     const oldValue = input.value; // Store for potential restoration
     input.value = '';
-    renderAll(); bootBehaviors();
+    renderAll().then(() => {
+      bootBehaviors();
+    });
     
     // Restore focus to the same input after re-render for rapid entry
     setTimeout(() => {

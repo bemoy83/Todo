@@ -1,13 +1,9 @@
 // drag.js — clean ESM: drag to reorder (cards + subtasks)
-// Fixes:
-//  - Allows dropping at END of any list (placeholder sits above add-sub input)
-//  - Keeps mid-list reordering intact
-//  - Smooth adaptive follow + coalesced pointer events
-//  - Lighter ghost shadow + touch-action hygiene
 
-import { $, $$, pt, clamp, model, renderAll, bootBehaviors, gesture } from './core.js';
+import { $, $$, pt, clamp, gesture } from './core.js';
+import { model } from './state.js';
+import { renderAll } from './rendering.js';
 import { DRAG } from './constants.js';
-const { HOLD_MS, JITTER_PX, GATE, FORCE, FOLLOW_MIN, FOLLOW_MAX, SPEED_GAIN, GAP_GAIN, SNAP_EPS } = DRAG;
 
 export function bindCrossSortContainer() {
   const app = document.getElementById('app');
@@ -300,7 +296,11 @@ export function bindCrossSortContainer() {
       }
     }
     cleanupDrag();
-    renderAll(); bootBehaviors();
+    renderAll().then(() => {
+      import('./core.js').then(({ bootBehaviors }) => {
+        bootBehaviors();
+      });
+    });
   }
 
   function popFromModel(mainId, subId) {
@@ -501,7 +501,11 @@ export function bindCrossSortContainer() {
     }
 
     cleanupCardDrag();
-    renderAll(); bootBehaviors();
+    renderAll().then(() => {
+      import('./core.js').then(({ bootBehaviors }) => {
+        bootBehaviors();
+      });
+    });
   }
 
   function cleanupCardNoDrag() {

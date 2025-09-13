@@ -73,9 +73,12 @@ export function startEditMode(subtaskElement) {
 	  saveModel();
 	  console.log('Saved and re-rendering');
 	  // Import these when needed to avoid circular dependency
-	  import('./core.js').then(({ renderAll, bootBehaviors }) => {
-		renderAll();
-		bootBehaviors();
+	  import('./rendering.js').then(({ renderAll }) => {
+		renderAll().then(() => {
+		  import('./core.js').then(({ bootBehaviors }) => {
+			bootBehaviors();
+		  });
+		});
 	  });
 	} else {
 	  console.log('No changes, restoring original');
@@ -170,9 +173,12 @@ export function startEditTaskTitle(taskElement) {
 	  task.title = newTitle;
 	  saveModel();
 	  // Import these when needed to avoid circular dependency
-	  import('./core.js').then(({ renderAll, bootBehaviors }) => {
-		renderAll();
-		bootBehaviors();
+	  import('./rendering.js').then(({ renderAll }) => {
+		renderAll().then(() => {
+		  import('./core.js').then(({ bootBehaviors }) => {
+			bootBehaviors();
+		  });
+		});
 	  });
 	} else {
 	  // Just restore the original display
