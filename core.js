@@ -3,23 +3,44 @@
 import { bindCrossSortContainer } from './drag.js';
 import { enableSwipe } from './swipe.js';
 import { bindMenu } from './menu.js';
-import { debounce, safeExecute } from './utils.js';
 import { model, saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticUpdate } from './state.js';
-import('./rendering.js').then(renderingModule => {
-  console.log('Rendering module loaded:', renderingModule);
-  console.log('renderAll exists:', typeof renderingModule.renderAll);
-}).catch(err => {
-  console.error('Failed to load rendering module:', err);
-});
+import { safeExecute } from './utils.js';
+// Remove the rendering.js import temporarily
 
-// Temporary fallback
-export function renderAll() {
-  console.log('Using fallback renderAll');
-  return Promise.resolve();
+// Add renderAll back to core.js temporarily
+export function renderAll(){
+  return safeExecute(() => {
+    const layer = app ? app.querySelector("#dragLayer") : null;
+    if(app) app.innerHTML = "";
+    if(!app) return Promise.resolve();
+    
+    if(model.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.innerHTML = '<div>🎉 All done!</div><div>Add your first task below.</div>';
+      app.appendChild(empty);
+    } else {
+      for(const m of model) app.appendChild(renderCard(m));
+    }
+    if(layer) app.appendChild(layer);
+    saveModel();
+    
+    return Promise.resolve();
+  }, () => {
+    console.error('Render failed, showing fallback');
+    if(app) app.innerHTML = '<div class="empty">Something went wrong. Please refresh.</div>';
+    return Promise.resolve();
+  });
 }
-export function setApp() {
-  console.log('Using fallback setApp');
+
+function renderCard(m){
+  // Copy the entire renderCard function from rendering.js here
 }
+
+export function setApp(appElement) {
+  // This function can stay simple for now
+}
+
 import { startEditMode, startEditTaskTitle } from './editing.js';
 
 // ===== Helpers =====
