@@ -12,7 +12,7 @@ export function renderAll(){
   return safeExecute(() => {
 	const layer = app ? app.querySelector("#dragLayer") : null;
 	if(app) app.innerHTML = "";
-	if(!app) return Promise.resolve();
+	if(!app) return;
 	
 	if(model.length === 0){
 	  const empty = document.createElement('div');
@@ -24,12 +24,9 @@ export function renderAll(){
 	}
 	if(layer) app.appendChild(layer);
 	saveModel();
-	
-	return Promise.resolve();
   }, () => {
 	console.error('Render failed, showing fallback');
 	if(app) app.innerHTML = '<div class="empty">Something went wrong. Please refresh.</div>';
-	return Promise.resolve();
   });
 }
 

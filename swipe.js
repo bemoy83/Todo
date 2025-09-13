@@ -350,18 +350,16 @@ function performAction(actionName) {
       switch (actionName) {
         case 'delete':
           task.subtasks.splice(subtaskIndex, 1);
-          renderAll().then(() => {
-            import('./core.js').then(({ bootBehaviors }) => {
-              bootBehaviors();
-            });
+          renderAll();
+          import('./core.js').then(({ bootBehaviors }) => {
+            bootBehaviors();
           });
           break;
         case 'complete':
           subtask.done = !subtask.done;
-          renderAll().then(() => {
-            import('./core.js').then(({ bootBehaviors }) => {
-              bootBehaviors();
-            });
+          renderAll();
+          import('./core.js').then(({ bootBehaviors }) => {
+            bootBehaviors();
           });
           break;
         case 'edit':
@@ -383,10 +381,9 @@ function performAction(actionName) {
           } else {
             task.completed = !task.completed;
           }
-          renderAll().then(() => {
-            import('./core.js').then(({ bootBehaviors }) => {
-              bootBehaviors();
-            });
+          renderAll();
+          import('./core.js').then(({ bootBehaviors }) => {
+            bootBehaviors();
           });
           break;
         case 'edit-title':
@@ -398,10 +395,9 @@ function performAction(actionName) {
             const taskIndex = model.findIndex(x => x.id === taskId);
             if (taskIndex >= 0) {
               model.splice(taskIndex, 1);
-              renderAll().then(() => {
-                import('./core.js').then(({ bootBehaviors }) => {
-                  bootBehaviors();
-                });
+              renderAll();
+              import('./core.js').then(({ bootBehaviors }) => {
+                bootBehaviors();
               });
             }
           }

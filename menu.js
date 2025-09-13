@@ -51,10 +51,9 @@ function bindMainMenu() {
       }));
       model.splice(0, model.length, ...normalized);
       saveModel();
-     renderAll().then(() => {
-       import('./core.js').then(({ bootBehaviors }) => {
-         bootBehaviors();
-       });
+     renderAll();
+     import('./core.js').then(({ bootBehaviors }) => {
+       bootBehaviors();
      });
     } catch(err){
       alert('Import failed: ' + (err?.message || err));
@@ -68,10 +67,9 @@ function bindMainMenu() {
     try { localStorage.removeItem('todo:model'); } catch {}
     model.length = 0;
     saveModel();
-    renderAll().then(() => {
-      import('./core.js').then(({ bootBehaviors }) => {
-        bootBehaviors();
-      });
+    renderAll();
+    import('./core.js').then(({ bootBehaviors }) => {
+      bootBehaviors();
     });
     closeMenu();
   }

@@ -296,10 +296,9 @@ export function bindCrossSortContainer() {
       }
     }
     cleanupDrag();
-    renderAll().then(() => {
-      import('./core.js').then(({ bootBehaviors }) => {
-        bootBehaviors();
-      });
+    renderAll();
+    import('./core.js').then(({ bootBehaviors }) => {
+      bootBehaviors();
     });
   }
 
@@ -501,10 +500,9 @@ export function bindCrossSortContainer() {
     }
 
     cleanupCardDrag();
-    renderAll().then(() => {
-      import('./core.js').then(({ bootBehaviors }) => {
-        bootBehaviors();
-      });
+    renderAll();
+    import('./core.js').then(({ bootBehaviors }) => {
+      bootBehaviors();
     });
   }
 

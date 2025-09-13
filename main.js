@@ -18,9 +18,7 @@ window.addEventListener('unhandledrejection', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
   try {
     setDomRefs();
-    renderAll().then(() => {
-      bootBehaviors();
-    });
+    renderAll();
     bootBehaviors();
   } catch (error) {
     console.error('App initialization failed:', error);
