@@ -1,7 +1,7 @@
 // swipe.js – swipe gestures for both subtasks and task cards
 import { pt, clamp, FLAGS, gesture } from './core.js';
 import { model } from './state.js';
-import { renderAll } from './rendering.js';
+import { renderAll } from './core.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { SWIPE, ANIM } from './constants.js';
 import { throttle } from './utils.js';

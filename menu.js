@@ -1,6 +1,6 @@
 // menu.js – clean ESM: main menu interactions only
 import { model, uid, saveModel } from './state.js';
-import { renderAll } from './rendering.js';
+import { renderAll } from './core.js';
 
 let menuBound = false;
 

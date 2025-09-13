@@ -2,7 +2,7 @@
 
 import { $, $$, pt, clamp, gesture } from './core.js';
 import { model } from './state.js';
-import { renderAll } from './rendering.js';
+import { renderAll } from './core.js';
 import { DRAG } from './constants.js';
 
 export function bindCrossSortContainer() {
