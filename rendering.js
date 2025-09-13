@@ -1,5 +1,6 @@
 // rendering.js - DOM rendering functionality
 import { model, saveModel } from './state.js';
+import { safeExecute } from './utils.js';
 
 let app = null;
 
@@ -8,34 +9,36 @@ export function setApp(appElement) {
 }
 
 export function renderAll(){
-  return import('./utils.js').then(({ safeExecute }) => {
-	return safeExecute(() => {
-	  const layer = app ? app.querySelector("#dragLayer") : null;
-	  if(app) app.innerHTML = "";
-	  if(!app) return;
-	  if(model.length === 0){
-		const empty = document.createElement('div');
-		empty.className = 'empty';
-		empty.innerHTML = '<div>🎉 All done!</div><div>Add your first task below.</div>';
-		app.appendChild(empty);
-	  } else {
-		for(const m of model) app.appendChild(renderCard(m));
-	  }
-	  if(layer) app.appendChild(layer);
-	  saveModel();
-	}, () => {
-	  console.error('Render failed, showing fallback');
-	  if(app) app.innerHTML = '<div class="empty">Something went wrong. Please refresh.</div>';
-	});
+  return safeExecute(() => {
+	const layer = app ? app.querySelector("#dragLayer") : null;
+	if(app) app.innerHTML = "";
+	if(!app) return Promise.resolve();
+	
+	if(model.length === 0){
+	  const empty = document.createElement('div');
+	  empty.className = 'empty';
+	  empty.innerHTML = '<div>🎉 All done!</div><div>Add your first task below.</div>';
+	  app.appendChild(empty);
+	} else {
+	  for(const m of model) app.appendChild(renderCard(m));
+	}
+	if(layer) app.appendChild(layer);
+	saveModel();
+	
+	return Promise.resolve();
+  }, () => {
+	console.error('Render failed, showing fallback');
+	if(app) app.innerHTML = '<div class="empty">Something went wrong. Please refresh.</div>';
+	return Promise.resolve();
   });
 }
 
 function renderCard(m){
   const card = document.createElement("article");
-  card.className = "task-card card-swipe-wrap";  // Add card-swipe-wrap class to existing task-card
+  card.className = "task-card card-swipe-wrap";
   card.dataset.id = m.id;
   
-  // Determine if task is completed (either has completed property OR all subtasks are done)
+  // Determine if task is completed
   const taskCompleted = m.completed || (m.subtasks.length > 0 && m.subtasks.every(st => st.done));
   
   card.innerHTML = `
