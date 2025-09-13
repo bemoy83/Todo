@@ -1,4 +1,5 @@
-import { setDomRefs, renderAll, bootBehaviors, cleanup } from './core.js';
+import { setDomRefs, bootBehaviors, cleanup } from './core.js';
+import { renderAll } from './rendering.js';
 import './drag.js';
 import './swipe.js';
 import './menu.js';

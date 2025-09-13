@@ -2,7 +2,7 @@
 
 import { $, $$, pt, clamp, gesture } from './core.js';
 import { model } from './state.js';
-import { renderAll } from './core.js';
+import { renderAll } from './rendering.js';
 import { DRAG } from './constants.js';
 const { HOLD_MS, JITTER_PX, GATE, FORCE, FOLLOW_MIN, FOLLOW_MAX, SPEED_GAIN, GAP_GAIN, SNAP_EPS } = DRAG;
 
