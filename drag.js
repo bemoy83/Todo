@@ -1,8 +1,8 @@
-// drag.js — clean ESM: drag to reorder (cards + subtasks)
+// drag.js — clean ESM: drag to reorder (cards + subtasks) - Updated with TaskOperations
 
 import { $, $$, pt, clamp, gesture } from './core.js';
 import { model } from './state.js';
-import { renderAll } from './rendering.js';
+import { TaskOperations } from './taskOperations.js';
 import { DRAG } from './constants.js';
 const { HOLD_MS, JITTER_PX, GATE, FORCE, FOLLOW_MIN, FOLLOW_MAX, SPEED_GAIN, GAP_GAIN, SNAP_EPS } = DRAG;
 
@@ -275,7 +275,8 @@ export function bindCrossSortContainer() {
     requestAnimationFrame(step);
   }
 
-  function onPointerUp() {
+  // UPDATED: Use TaskOperations for subtask reordering
+  async function onPointerUp() {
     clearTimeout(timer);
     document.body.classList.remove('lock-scroll');
     if (!started) { cleanupNoDrag(); return; }
@@ -290,23 +291,19 @@ export function bindCrossSortContainer() {
         if (n === ph) break;
         if (n.classList?.contains('swipe-wrap')) newIndex++;
       }
-      const item = popFromModel(sourceMainId, drag.dataset.id);
-      if (item) {
-        const m = model.find(x => x.id === targetMainId);
-        m.subtasks.splice(newIndex, 0, item);
+      
+      // Use TaskOperations for consistent state management
+      const subtaskId = drag.dataset.id;
+      try {
+        await TaskOperations.subtask.move(sourceMainId, subtaskId, targetMainId, newIndex);
+      } catch (error) {
+        console.error('Subtask drag failed:', error);
+        // TaskOperations handles the re-render, so we still cleanup
       }
     }
+    
     cleanupDrag();
-    renderAll();
-    import('./core.js').then(({ bootBehaviors }) => {
-      bootBehaviors();
-    });
-  }
-
-  function popFromModel(mainId, subId) {
-    const m = model.find(x => x.id === mainId); if (!m) return null;
-    const i = m.subtasks.findIndex(s => s.id === subId); if (i < 0) return null;
-    return m.subtasks.splice(i, 1)[0];
+    // TaskOperations handles the re-render, so we don't need to call renderAll here
   }
 
   function cleanupNoDrag() {
@@ -482,7 +479,8 @@ export function bindCrossSortContainer() {
     requestAnimationFrame(cardStep);
   }
 
-  function onCardPointerUp() {
+  // UPDATED: Use TaskOperations for card reordering
+  async function onCardPointerUp() {
     clearTimeout(ctimer);
     document.body.classList.remove('lock-scroll');
     if (!cstarted) { cleanupCardNoDrag(); return; }
@@ -495,16 +493,19 @@ export function bindCrossSortContainer() {
 
     const movingId = cdrag.dataset.id;
     const oldIndex = model.findIndex(x => x.id === movingId);
+    
     if (oldIndex !== -1) {
-      const [item] = model.splice(oldIndex, 1);
-      model.splice(newIndex, 0, item);
+      try {
+        // Use TaskOperations for consistent state management
+        await TaskOperations.task.move(oldIndex, newIndex);
+      } catch (error) {
+        console.error('Task drag failed:', error);
+        // TaskOperations handles the re-render, so we still cleanup
+      }
     }
 
     cleanupCardDrag();
-    renderAll();
-    import('./core.js').then(({ bootBehaviors }) => {
-      bootBehaviors();
-    });
+    // TaskOperations handles the re-render, so we don't need to call renderAll here
   }
 
   function cleanupCardNoDrag() {
