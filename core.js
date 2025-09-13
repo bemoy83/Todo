@@ -65,10 +65,10 @@ function bindKeyboardShortcuts() {
 
 export function bootBehaviors(){
   if(!crossBound){ bindCrossSortContainer(); crossBound = true; }
-  enableSwipe();
+  enableSwipe(); // This needs to run every time to rebind to new DOM elements
   bindAdders();
   bindMenu();
-  bindKeyboardShortcuts(); // Add this line
+  bindKeyboardShortcuts();
 }
 
 function bindAdders(){

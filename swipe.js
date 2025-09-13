@@ -11,12 +11,22 @@ export function enableSwipe() {
   
   patchCSSOnce();
   
-  // Attach swipe to both subtasks and task cards
+  // Re-query DOM elements every time this is called (after re-renders)
   const subtaskWraps = document.querySelectorAll('.swipe-wrap');
   const cardWraps = document.querySelectorAll('.card-swipe-wrap');
   
-  subtaskWraps.forEach(wrap => attachSubtaskSwipe(wrap));
-  cardWraps.forEach(wrap => attachTaskSwipe(wrap));
+  // Remove existing listeners first (prevent duplicates)
+  subtaskWraps.forEach(wrap => {
+    if (wrap._swipeBound) return;
+    attachSubtaskSwipe(wrap);
+    wrap._swipeBound = true;
+  });
+  
+  cardWraps.forEach(wrap => {
+    if (wrap._swipeBound) return;
+    attachTaskSwipe(wrap);
+    wrap._swipeBound = true;
+  });
   
   // Global click prevention
   const app = document.getElementById('app') || document;
