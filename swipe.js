@@ -1,8 +1,8 @@
-// swipe.js – swipe gestures for both subtasks and task cards
+// swipe.js – swipe gestures for both subtasks and task cards - Updated with TaskOperations
 import { pt, clamp, FLAGS, gesture } from './core.js';
 import { model } from './state.js';
-import { renderAll } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
+import { TaskOperations } from './taskOperations.js';
 import { SWIPE, ANIM } from './constants.js';
 import { throttle } from './utils.js';
 
@@ -183,7 +183,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     }
   }
 
-const updateVisuals = throttle((x) => {
+  const updateVisuals = throttle((x) => {
     const leftReveal = clamp(x / Math.max(getLeftWidth(), 1), 0, 1);
     const rightReveal = clamp(-x / Math.max(getRightWidth(), 1), 0, 1);
     
@@ -334,75 +334,44 @@ const updateVisuals = throttle((x) => {
     }, duration + 10);
   }
 
-function performAction(actionName) {
-    if (type === 'subtask') {
-      const mainId = wrap.closest('.task-card').dataset.id;
-      const subId = row.dataset.id;
-      const task = model.find(x => x.id === mainId);
-      
-      if (!task) return;
-      
-      const subtaskIndex = task.subtasks.findIndex(s => s.id === subId);
-      if (subtaskIndex < 0) return;
-      
-      const subtask = task.subtasks[subtaskIndex];
-      
-      switch (actionName) {
-        case 'delete':
-          task.subtasks.splice(subtaskIndex, 1);
-          renderAll();
-          import('./core.js').then(({ bootBehaviors }) => {
-            bootBehaviors();
-          });
-          break;
-        case 'complete':
-          subtask.done = !subtask.done;
-          renderAll();
-          import('./core.js').then(({ bootBehaviors }) => {
-            bootBehaviors();
-          });
-          break;
-        case 'edit':
-          closeDrawer();
-          startEditMode(row);
-          break;
+  // UPDATED performAction function to use TaskOperations
+  async function performAction(actionName) {
+    try {
+      if (type === 'subtask') {
+        const mainId = wrap.closest('.task-card').dataset.id;
+        const subId = row.dataset.id;
+        
+        switch (actionName) {
+          case 'delete':
+            await TaskOperations.subtask.delete(mainId, subId);
+            break;
+          case 'complete':
+            await TaskOperations.subtask.toggle(mainId, subId);
+            break;
+          case 'edit':
+            closeDrawer();
+            startEditMode(row);
+            break;
+        }
+      } else if (type === 'task') {
+        const taskId = wrap.closest('.task-card').dataset.id;
+        
+        switch (actionName) {
+          case 'complete-all':
+            await TaskOperations.task.toggleCompletion(taskId);
+            break;
+          case 'edit-title':
+            closeDrawer();
+            startEditTaskTitle(row);
+            break;
+          case 'delete-task':
+            await TaskOperations.task.delete(taskId);
+            break;
+        }
       }
-    } else if (type === 'task') {
-      const taskId = wrap.closest('.task-card').dataset.id;
-      const task = model.find(x => x.id === taskId);
-      
-      if (!task) return;
-      
-      switch (actionName) {
-        case 'complete-all':
-          if (task.subtasks.length > 0) {
-            const allCompleted = task.subtasks.every(st => st.done);
-            task.subtasks.forEach(st => st.done = !allCompleted);
-          } else {
-            task.completed = !task.completed;
-          }
-          renderAll();
-          import('./core.js').then(({ bootBehaviors }) => {
-            bootBehaviors();
-          });
-          break;
-        case 'edit-title':
-          closeDrawer();
-          startEditTaskTitle(row);
-          break;
-        case 'delete-task':
-          if (confirm(`Delete "${task.title}" and all its subtasks?`)) {
-            const taskIndex = model.findIndex(x => x.id === taskId);
-            if (taskIndex >= 0) {
-              model.splice(taskIndex, 1);
-              renderAll();
-              import('./core.js').then(({ bootBehaviors }) => {
-                bootBehaviors();
-              });
-            }
-          }
-          break;
-      }
+    } catch (error) {
+      console.error('Swipe action failed:', error);
+      // Optionally show user feedback
     }
   }
   
@@ -420,11 +389,12 @@ function performAction(actionName) {
   row.addEventListener('pointerdown', onDown, { passive: true });
   row.addEventListener('click', closeDrawer);
   
-  actions.addEventListener('click', (e) => {
+  // UPDATED actions click handler to use TaskOperations
+  actions.addEventListener('click', async (e) => {
     const button = e.target.closest('.action');
     if (!button) return;
     
-    performAction(button.dataset.act);
+    await performAction(button.dataset.act);
     
     if (button.dataset.act !== 'edit' && button.dataset.act !== 'edit-title') {
       closeDrawer();
