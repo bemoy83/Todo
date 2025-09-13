@@ -1,5 +1,6 @@
 // menu.js – clean ESM: main menu interactions only
-import { model, uid, renderAll, bootBehaviors, saveModel } from './core.js';
+import { model, uid, saveModel } from './state.js';
+import { renderAll } from './rendering.js';
 
 let menuBound = false;
 
@@ -50,7 +51,11 @@ function bindMainMenu() {
       }));
       model.splice(0, model.length, ...normalized);
       saveModel();
-      renderAll(); bootBehaviors();
+     renderAll().then(() => {
+       import('./core.js').then(({ bootBehaviors }) => {
+         bootBehaviors();
+       });
+     });
     } catch(err){
       alert('Import failed: ' + (err?.message || err));
     } finally {
@@ -63,7 +68,11 @@ function bindMainMenu() {
     try { localStorage.removeItem('todo:model'); } catch {}
     model.length = 0;
     saveModel();
-    renderAll(); bootBehaviors();
+    renderAll().then(() => {
+      import('./core.js').then(({ bootBehaviors }) => {
+        bootBehaviors();
+      });
+    });
     closeMenu();
   }
 }

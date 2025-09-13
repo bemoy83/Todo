@@ -1,7 +1,8 @@
 // swipe.js – swipe gestures for both subtasks and task cards
-import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture, startEditMode, startEditTaskTitle, syncTaskCompletion, optimisticUpdate } from './core.js';
-import { SWIPE, ANIM } from './constants.js';
-import { throttle } from './utils.js';
+import { pt, clamp, FLAGS, gesture } from './core.js';
+import { model } from './state.js';
+import { renderAll } from './rendering.js';
+import { startEditMode, startEditTaskTitle } from './editing.js';
 
 export function enableSwipe() {
   if (!FLAGS.swipeGestures) return;
@@ -321,7 +322,7 @@ const updateVisuals = throttle((x) => {
     }, duration + 10);
   }
 
-  function performAction(actionName) {
+function performAction(actionName) {
     if (type === 'subtask') {
       const mainId = wrap.closest('.task-card').dataset.id;
       const subId = row.dataset.id;
@@ -337,13 +338,19 @@ const updateVisuals = throttle((x) => {
       switch (actionName) {
         case 'delete':
           task.subtasks.splice(subtaskIndex, 1);
-          renderAll();
-          bootBehaviors();
+          renderAll().then(() => {
+            import('./core.js').then(({ bootBehaviors }) => {
+              bootBehaviors();
+            });
+          });
           break;
         case 'complete':
           subtask.done = !subtask.done;
-          renderAll();
-          bootBehaviors();
+          renderAll().then(() => {
+            import('./core.js').then(({ bootBehaviors }) => {
+              bootBehaviors();
+            });
+          });
           break;
         case 'edit':
           closeDrawer();
@@ -364,8 +371,11 @@ const updateVisuals = throttle((x) => {
           } else {
             task.completed = !task.completed;
           }
-          renderAll();
-          bootBehaviors();
+          renderAll().then(() => {
+            import('./core.js').then(({ bootBehaviors }) => {
+              bootBehaviors();
+            });
+          });
           break;
         case 'edit-title':
           closeDrawer();
@@ -376,15 +386,18 @@ const updateVisuals = throttle((x) => {
             const taskIndex = model.findIndex(x => x.id === taskId);
             if (taskIndex >= 0) {
               model.splice(taskIndex, 1);
-              renderAll();
-              bootBehaviors();
+              renderAll().then(() => {
+                import('./core.js').then(({ bootBehaviors }) => {
+                  bootBehaviors();
+                });
+              });
             }
           }
           break;
       }
     }
   }
-
+  
   function closeDrawer() {
     if (openX !== 0) {
       animateTo(0);
