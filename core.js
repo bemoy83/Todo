@@ -96,7 +96,7 @@ function bindAdders(){
     form._bound = true;
   }
   
-  // Delegate for per-card subtask add with focus retention
+  // Delegate for per-card subtask add with focus retention  
   app?.addEventListener('submit', function(e){
     const f = e.target.closest('.add-subtask-form');
     if(!f) return;
@@ -105,9 +105,9 @@ function bindAdders(){
     const input = f.querySelector('input[name="subtask"]');
     const text = (input.value || '').trim();
     if(!text) return;
-    const m = model.find(x=>x.id===mainId); if(!m) return;
+    const m = model.find(x=>x.id===mainId); 
+    if(!m) return;
     m.subtasks.push({ id: uid('s'), text, done:false });
-    const oldValue = input.value; // Store for potential restoration
     input.value = '';
     renderAll();
     bootBehaviors();
@@ -118,11 +118,9 @@ function bindAdders(){
       const subtaskInput = taskCard?.querySelector('.add-sub-input');
       if (subtaskInput) {
         subtaskInput.focus();
-        // Optionally restore partial input if user was typing
-        // subtaskInput.value = oldValue.replace(text, '').trim();
       }
     }, 50);
-  }, { once:false });
+  }, { once: false });
 }
 
 // ===== Shared util for swipe/drag =====
