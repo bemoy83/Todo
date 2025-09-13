@@ -44,3 +44,20 @@ export const SWIPE = {
 export const UI = {
   TOPBAR_H: 56,       // px
 };
+
+// ---- Animation & timing constants ----
+export const ANIM = {
+  DURATION_FAST: 140,
+  DURATION_NORMAL: 200,
+  DURATION_SLOW: 300,
+  EASING: 'ease-out',
+  REDUCED_MOTION_DURATION: 80,
+};
+
+// ---- Keyboard shortcuts ----
+export const KEYS = {
+  ENTER: 'Enter',
+  ESCAPE: 'Escape',
+  N: 'n',
+  S: 's',
+};

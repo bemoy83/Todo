@@ -22,7 +22,13 @@
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
     /* Allow text selection & editing in form controls */
-    input, textarea { -webkit-user-select:text; user-select:text; -webkit-touch-callout:default; }
+ input, textarea { 
+   -webkit-user-select:text; 
+   user-select:text; 
+   -webkit-touch-callout:default;
+   font-size: 16px; /* Prevents iOS zoom */
+   transform: translateZ(0); /* Hardware acceleration */
+ }
 
     body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:var(--bg); color:var(--text);}  
 
@@ -111,9 +117,39 @@
 
     :root{ --topbar-h: 56px; }
 
-    @media (prefers-reduced-motion: reduce){
-      .task-card, .task-card.armed, .subtask, .subtask.armed { transition:none !important; transform:none !important; }
-    }
+  /* Loading and success states */
+  .task-card.saving {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  
+  .task-card.success {
+    animation: successPulse 300ms ease-out;
+  }
+  
+  @keyframes successPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+  
+  /* Better focus indicators */
+  .add-input:focus,
+  .add-sub-input:focus {
+    outline: none;
+    box-shadow: var(--focus);
+    border-color: #74c0fc;
+  }
+  
+  /* Smooth state transitions */
+  .task-card,
+  .subtask {
+    transition: opacity 200ms ease, transform 200ms ease;
+  }
+  
+  @media (prefers-reduced-motion: reduce){
+    .task-card, .task-card.armed, .subtask, .subtask.armed { transition:none !important; transform:none !important; }
+  }
   </style>
 </head>
 <body>

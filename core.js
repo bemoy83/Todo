@@ -3,6 +3,7 @@
 // Imports binder functions so bootBehaviors wires everything without globals.
 
 import { bindCrossSortContainer } from './drag.js';
+import { debounce, safeExecute } from './utils.js';
 import { enableSwipe } from './swipe.js';
 import { bindMenu } from './menu.js';
 
@@ -66,7 +67,31 @@ export function loadModel(){
   return structuredClone(DEFAULT_MODEL);
 }
 export let model = loadModel();
-export function saveModel(){ try{ localStorage.setItem('todo:model', JSON.stringify(model)); }catch{} }
+
+export const debouncedSave = debounce(() => {
+  try { 
+    localStorage.setItem('todo:model', JSON.stringify(model)); 
+  } catch(e) {
+    console.error('Failed to save model:', e);
+  }
+}, 300);
+
+export function saveModel(){ 
+  debouncedSave();
+}
+
+// Optimistic updates for better perceived performance
+export function optimisticUpdate(taskId, changes) {
+  const task = model.find(x => x.id === taskId);
+  if (task) {
+    Object.assign(task, changes);
+    // Re-render immediately for instant feedback
+    renderAll();
+    bootBehaviors();
+    // Save in background
+    debouncedSave();
+  }
+}
 
 // ===== Edit functionality =====
 export function startEditMode(subtaskElement) {
@@ -265,19 +290,24 @@ export function startEditTaskTitle(taskElement) {
 
 // ===== Rendering =====
 export function renderAll(){
-  const layer = app ? $("#dragLayer", app) : null;
-  if(app) app.innerHTML = "";
-  if(!app) return;
-  if(model.length === 0){
-    const empty = document.createElement('div');
-    empty.className = 'empty';
-    empty.innerHTML = '<div>🎉 All done!</div><div>Add your first task below.</div>';
-    app.appendChild(empty);
-  } else {
-    for(const m of model) app.appendChild(renderCard(m));
-  }
-  if(layer) app.appendChild(layer);
-  saveModel();
+  return safeExecute(() => {
+    const layer = app ? $("#dragLayer", app) : null;
+    if(app) app.innerHTML = "";
+    if(!app) return;
+    if(model.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.innerHTML = '<div>🎉 All done!</div><div>Add your first task below.</div>';
+      app.appendChild(empty);
+    } else {
+      for(const m of model) app.appendChild(renderCard(m));
+    }
+    if(layer) app.appendChild(layer);
+    saveModel();
+  }, () => {
+    console.error('Render failed, showing fallback');
+    if(app) app.innerHTML = '<div class="empty">Something went wrong. Please refresh.</div>';
+  });
 }
 
 function renderCard(m){
@@ -366,11 +396,42 @@ function renderCard(m){
 
 // ===== Behavior wiring =====
 let crossBound = false;
+function bindKeyboardShortcuts() {
+  if (document._keyboardBound) return;
+  
+  document.addEventListener('keydown', (e) => {
+    // Only handle shortcuts when not typing in an input
+    if (e.target.matches('input, textarea, [contenteditable]')) return;
+    
+    if (e.metaKey || e.ctrlKey) {
+      switch(e.key) {
+        case 'n':
+          e.preventDefault();
+          document.getElementById('newTaskTitle')?.focus();
+          break;
+        case 's':
+          e.preventDefault();
+          // Force save
+          saveModel();
+          break;
+      }
+    }
+    
+    // Escape to clear focus
+    if (e.key === 'Escape') {
+      document.activeElement?.blur();
+    }
+  });
+  
+  document._keyboardBound = true;
+}
+
 export function bootBehaviors(){
   if(!crossBound){ bindCrossSortContainer(); crossBound = true; }
   enableSwipe();
   bindAdders();
   bindMenu();
+  bindKeyboardShortcuts(); // Add this line
 }
 
 function bindAdders(){
@@ -432,4 +493,21 @@ export function clamp(n, min, max){ return Math.min(max, Math.max(min, n)); }
 export function setDomRefs(){
   app = document.getElementById('app');
   dragLayer = document.getElementById('dragLayer');
+}
+
+// Global cleanup function
+export function cleanup() {
+  // Remove any global event listeners
+  if (window._resizeHandler) {
+    window.removeEventListener('resize', window._resizeHandler);
+  }
+  
+  // Clear any timers
+  if (window._resizeTimer) {
+    clearTimeout(window._resizeTimer);
+  }
+  
+  // Reset gesture state
+  gesture.drag = false;
+  gesture.swipe = false;
 }

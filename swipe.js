@@ -1,6 +1,7 @@
 // swipe.js – swipe gestures for both subtasks and task cards
-import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture, startEditMode, startEditTaskTitle, syncTaskCompletion } from './core.js';
-import { SWIPE } from './constants.js';
+import { pt, clamp, model, renderAll, bootBehaviors, FLAGS, gesture, startEditMode, startEditTaskTitle, syncTaskCompletion, optimisticUpdate } from './core.js';
+import { SWIPE, ANIM } from './constants.js';
+import { throttle } from './utils.js';
 
 export function enableSwipe() {
   if (!FLAGS.swipeGestures) return;
@@ -169,13 +170,13 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     }
   }
 
-  function updateVisuals(x) {
+const updateVisuals = throttle((x) => {
     const leftReveal = clamp(x / Math.max(getLeftWidth(), 1), 0, 1);
     const rightReveal = clamp(-x / Math.max(getRightWidth(), 1), 0, 1);
     
     leftZone.style.setProperty('--reveal', leftReveal.toFixed(3));
     rightZone.style.setProperty('--reveal', rightReveal.toFixed(3));
-  }
+  }, 16); // Throttle to ~60fps
 
   function pulseZone(zone) {
     zone.style.setProperty('--pulse', '1.15');
