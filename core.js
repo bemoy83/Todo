@@ -63,14 +63,6 @@ function bindKeyboardShortcuts() {
   document._keyboardBound = true;
 }
 
-export function bootBehaviors(){
-  if(!crossBound){ bindCrossSortContainer(); crossBound = true; }
-  enableSwipe(); // This needs to run every time to rebind to new DOM elements
-  bindAdders();
-  bindMenu();
-  bindKeyboardShortcuts();
-}
-
 function bindAdders(){
   // Main add bar
   const form = document.getElementById('addMainForm');
@@ -85,7 +77,6 @@ function bindAdders(){
       inp.value = '';
       renderAll();
       bootBehaviors();
-      });
       
       // Auto-focus the newly created task's subtask input for rapid entry
       setTimeout(() => {
@@ -112,7 +103,35 @@ function bindAdders(){
     input.value = '';
     renderAll();
     bootBehaviors();
-    });
+    
+    // Restore focus to the same input after re-render for rapid entry
+    setTimeout(() => {
+      const taskCard = document.querySelector('.task-card[data-id="' + mainId + '"]');
+      const subtaskInput = taskCard?.querySelector('.add-sub-input');
+      if (subtaskInput) {
+        subtaskInput.focus();
+        // Optionally restore partial input if user was typing
+        // subtaskInput.value = oldValue.replace(text, '').trim();
+      }
+    }, 50);
+  }, { once:false });
+}
+  
+  // Delegate for per-card subtask add with focus retention
+  app?.addEventListener('submit', function(e){
+    const f = e.target.closest('.add-subtask-form');
+    if(!f) return;
+    e.preventDefault();
+    const mainId = f.dataset.mainId;
+    const input = f.querySelector('input[name="subtask"]');
+    const text = (input.value || '').trim();
+    if(!text) return;
+    const m = model.find(x=>x.id===mainId); if(!m) return;
+    m.subtasks.push({ id: uid('s'), text, done:false });
+    const oldValue = input.value; // Store for potential restoration
+    input.value = '';
+    renderAll();
+    bootBehaviors();
     
     // Restore focus to the same input after re-render for rapid entry
     setTimeout(() => {
