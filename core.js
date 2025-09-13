@@ -5,7 +5,21 @@ import { enableSwipe } from './swipe.js';
 import { bindMenu } from './menu.js';
 import { debounce, safeExecute } from './utils.js';
 import { model, saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticUpdate } from './state.js';
-import { renderAll, setApp } from './rendering.js';
+import('./rendering.js').then(renderingModule => {
+  console.log('Rendering module loaded:', renderingModule);
+  console.log('renderAll exists:', typeof renderingModule.renderAll);
+}).catch(err => {
+  console.error('Failed to load rendering module:', err);
+});
+
+// Temporary fallback
+export function renderAll() {
+  console.log('Using fallback renderAll');
+  return Promise.resolve();
+}
+export function setApp() {
+  console.log('Using fallback setApp');
+}
 import { startEditMode, startEditTaskTitle } from './editing.js';
 
 // ===== Helpers =====
