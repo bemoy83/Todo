@@ -1,6 +1,7 @@
-// menu.js – clean ESM: main menu interactions only
+// menu.js – clean ESM: main menu interactions only - Updated with TaskOperations
 import { model, uid, saveModel } from './state.js';
 import { renderAll } from './rendering.js';
+import { TaskOperations } from './taskOperations.js';
 
 let menuBound = false;
 
@@ -36,59 +37,72 @@ function bindMainMenu() {
     if (act === 'import') return file?.click();
   });
 
+  // UPDATED: Import handler using TaskOperations
   file?.addEventListener('change', async (e)=>{
-    const f = e.target.files?.[0]; if(!f) return;
+    const f = e.target.files?.[0]; 
+    if(!f) return;
+    
     try{
       const text = await f.text();
-      const data = JSON.parse(text);
-      if(!Array.isArray(data)) throw new Error('Invalid backup file');
-      const normalized = data.map(x=>({
-        id: x.id || uid('m'),
-        title: String(x.title || 'Untitled'),
-        subtasks: Array.isArray(x.subtasks)
-          ? x.subtasks.map(s=>({ id:s.id||uid('s'), text:String(s.text||''), done:!!s.done }))
-          : []
-      }));
-      model.splice(0, model.length, ...normalized);
-      saveModel();
-     renderAll();
-     import('./core.js').then(({ bootBehaviors }) => {
-       bootBehaviors();
-     });
+      const success = await TaskOperations.bulk.import(text);
+      
+      if (!success) {
+        alert('Import failed: Invalid backup file format');
+      } else {
+        closeMenu();
+        // Show success feedback
+        console.log('Import successful');
+      }
     } catch(err){
       alert('Import failed: ' + (err?.message || err));
+      console.error('Import error:', err);
     } finally {
       e.target.value = '';
     }
   });
 
-  function clearAllData(){
+  // UPDATED: Clear all data using consistent approach
+  async function clearAllData(){
     if (!confirm('Delete all tasks? This cannot be undone.')) return;
-    try { localStorage.removeItem('todo:model'); } catch {}
+    
+    try { 
+      localStorage.removeItem('todo:model'); 
+    } catch {}
+    
+    // Clear model and use TaskOperations approach for consistency
     model.length = 0;
     saveModel();
     renderAll();
+    
+    // Re-bind behaviors after clearing
     import('./core.js').then(({ bootBehaviors }) => {
       bootBehaviors();
     });
+    
     closeMenu();
+    console.log('All data cleared');
   }
-}
 
-function exportBackup() {
-  try {
-    const dataStr = JSON.stringify(model, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `tasks-backup-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    alert('Export failed: ' + (err?.message || err));
+  // UPDATED: Export using TaskOperations
+  function exportBackup() {
+    try {
+      const dataStr = TaskOperations.bulk.export();
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `tasks-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      closeMenu();
+      console.log('Export successful');
+    } catch (err) {
+      alert('Export failed: ' + (err?.message || err));
+      console.error('Export error:', err);
+    }
   }
 }
 

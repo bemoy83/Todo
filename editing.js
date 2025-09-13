@@ -1,5 +1,5 @@
-// editing.js - Edit functionality for tasks and subtasks
-import { model, saveModel } from './state.js';
+// editing.js - Edit functionality for tasks and subtasks - Updated with TaskOperations
+import { TaskOperations } from './taskOperations.js';
 
 export function startEditMode(subtaskElement) {
   console.log('Starting edit mode for subtask');
@@ -7,8 +7,8 @@ export function startEditMode(subtaskElement) {
   const wrap = subtaskElement.closest('.swipe-wrap');
   const textEl = subtaskElement.querySelector('.sub-text');
   if (!textEl || !wrap) {
-	console.log('Missing required elements');
-	return;
+    console.log('Missing required elements');
+    return;
   }
   
   // Get IDs from data attributes
@@ -17,20 +17,8 @@ export function startEditMode(subtaskElement) {
   
   console.log('Edit - mainId:', mainId, 'subId:', subId);
   
-  // Find the task and subtask in the model
-  const task = model.find(x => x.id === mainId);
-  if (!task) {
-	console.log('Task not found in model');
-	return;
-  }
-  
-  const subtask = task.subtasks.find(s => s.id === subId);
-  if (!subtask) {
-	console.log('Subtask not found in model');
-	return;
-  }
-  
-  const originalText = subtask.text || 'Untitled';
+  // Get current text from the element (more reliable than model lookup)
+  const originalText = textEl.textContent?.trim() || 'Untitled';
   console.log('Original text:', originalText);
   
   // Create input element
@@ -39,18 +27,18 @@ export function startEditMode(subtaskElement) {
   input.value = originalText;
   input.className = 'subtask-edit-input';
   input.style.cssText = `
-	width: 100%;
-	border: 2px solid #3b82f6;
-	border-radius: 6px;
-	padding: 8px 12px;
-	font-size: inherit;
-	font-family: inherit;
-	background: white;
-	outline: none;
-	margin: 0;
-	box-sizing: border-box;
-	-webkit-user-select: text;
-	user-select: text;
+    width: 100%;
+    border: 2px solid #3b82f6;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: inherit;
+    font-family: inherit;
+    background: white;
+    outline: none;
+    margin: 0;
+    box-sizing: border-box;
+    -webkit-user-select: text;
+    user-select: text;
   `;
   
   // Replace text element with input
@@ -59,53 +47,60 @@ export function startEditMode(subtaskElement) {
   
   // Focus and select all text
   setTimeout(() => {
-	input.focus();
-	input.select();
+    input.focus();
+    input.select();
   }, 50);
   
-  // Save function
-  const saveEdit = () => {
-	const newText = input.value.trim();
-	console.log('Saving edit - new text:', newText);
-	
-	if (newText && newText !== originalText) {
-	  subtask.text = newText;
-	  saveModel();
-	  console.log('Saved and re-rendering');
-	  // Import these when needed to avoid circular dependency
-	  import('./rendering.js').then(({ renderAll }) => {
-		renderAll();
-		import('./core.js').then(({ bootBehaviors }) => {
-		  bootBehaviors();
-		});
-	  });
-	} else {
-	  console.log('No changes, restoring original');
-	  // Just restore the original display
-	  textEl.style.display = '';
-	  input.remove();
-	}
+  // Save function - UPDATED to use TaskOperations
+  const saveEdit = async () => {
+    const newText = input.value.trim();
+    console.log('Saving edit - new text:', newText);
+    
+    if (newText && newText !== originalText) {
+      try {
+        // Use TaskOperations instead of direct model manipulation
+        await TaskOperations.subtask.update(mainId, subId, { text: newText });
+        console.log('Saved and re-rendering');
+      } catch (error) {
+        console.error('Failed to update subtask:', error);
+        // Restore original display on error
+        textEl.style.display = '';
+        input.remove();
+        // Optionally show user feedback
+        alert('Failed to save changes. Please try again.');
+      }
+    } else {
+      console.log('No changes, restoring original');
+      // Just restore the original display
+      textEl.style.display = '';
+      input.remove();
+    }
   };
   
   // Cancel function
   const cancelEdit = () => {
-	console.log('Canceling edit');
-	textEl.style.display = '';
-	input.remove();
+    console.log('Canceling edit');
+    textEl.style.display = '';
+    input.remove();
   };
   
   // Event listeners
   input.addEventListener('keydown', (e) => {
-	if (e.key === 'Enter') {
-	  e.preventDefault();
-	  saveEdit();
-	} else if (e.key === 'Escape') {
-	  e.preventDefault();
-	  cancelEdit();
-	}
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
   });
   
   input.addEventListener('blur', saveEdit);
+  
+  // Prevent swipe/drag while editing
+  input.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+  });
 }
 
 export function startEditTaskTitle(taskElement) {
@@ -114,8 +109,8 @@ export function startEditTaskTitle(taskElement) {
   const card = taskElement.closest('.task-card');
   const titleEl = card.querySelector('.task-title');
   if (!titleEl || !card) {
-	console.log('Missing required elements for task edit');
-	return;
+    console.log('Missing required elements for task edit');
+    return;
   }
   
   // Get task ID from data attribute
@@ -123,14 +118,8 @@ export function startEditTaskTitle(taskElement) {
   
   console.log('Edit task - taskId:', taskId);
   
-  // Find the task in the model
-  const task = model.find(x => x.id === taskId);
-  if (!task) {
-	console.log('Task not found in model');
-	return;
-  }
-  
-  const originalTitle = task.title || 'Untitled';
+  // Get current title from the element (more reliable than model lookup)
+  const originalTitle = titleEl.textContent?.trim() || 'Untitled';
   console.log('Original title:', originalTitle);
   
   // Create input element
@@ -139,19 +128,19 @@ export function startEditTaskTitle(taskElement) {
   input.value = originalTitle;
   input.className = 'task-title-edit-input';
   input.style.cssText = `
-	width: 100%;
-	border: 2px solid #3b82f6;
-	border-radius: 6px;
-	padding: 8px 12px;
-	font-size: inherit;
-	font-family: inherit;
-	font-weight: 800;
-	background: white;
-	outline: none;
-	margin: 0;
-	box-sizing: border-box;
-	-webkit-user-select: text;
-	user-select: text;
+    width: 100%;
+    border: 2px solid #3b82f6;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: inherit;
+    font-family: inherit;
+    font-weight: 800;
+    background: white;
+    outline: none;
+    margin: 0;
+    box-sizing: border-box;
+    -webkit-user-select: text;
+    user-select: text;
   `;
   
   // Replace title element with input
@@ -160,47 +149,77 @@ export function startEditTaskTitle(taskElement) {
   
   // Focus and select all text
   setTimeout(() => {
-	input.focus();
-	input.select();
+    input.focus();
+    input.select();
   }, 50);
   
-  // Save function
-  const saveEdit = () => {
-	const newTitle = input.value.trim();
-	
-	if (newTitle && newTitle !== originalTitle) {
-	  task.title = newTitle;
-	  saveModel();
-	  // Import these when needed to avoid circular dependency
-	  import('./rendering.js').then(({ renderAll }) => {
-		renderAll();
-		import('./core.js').then(({ bootBehaviors }) => {
-		  bootBehaviors();
-		});
-	  });
-	} else {
-	  // Just restore the original display
-	  titleEl.style.display = '';
-	  input.remove();
-	}
+  // Save function - UPDATED to use TaskOperations
+  const saveEdit = async () => {
+    const newTitle = input.value.trim();
+    
+    if (newTitle && newTitle !== originalTitle) {
+      try {
+        // Use TaskOperations instead of direct model manipulation
+        await TaskOperations.task.update(taskId, { title: newTitle });
+        console.log('Task title updated successfully');
+      } catch (error) {
+        console.error('Failed to update task title:', error);
+        // Restore original display on error
+        titleEl.style.display = '';
+        input.remove();
+        // Optionally show user feedback
+        alert('Failed to save changes. Please try again.');
+      }
+    } else {
+      // Just restore the original display
+      titleEl.style.display = '';
+      input.remove();
+    }
   };
   
   // Cancel function
   const cancelEdit = () => {
-	titleEl.style.display = '';
-	input.remove();
+    titleEl.style.display = '';
+    input.remove();
   };
   
   // Event listeners
   input.addEventListener('keydown', (e) => {
-	if (e.key === 'Enter') {
-	  e.preventDefault();
-	  saveEdit();
-	} else if (e.key === 'Escape') {
-	  e.preventDefault();
-	  cancelEdit();
-	}
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
   });
   
   input.addEventListener('blur', saveEdit);
+  
+  // Prevent swipe/drag while editing
+  input.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+  });
+}
+
+// BONUS: Helper function for batch editing (future feature)
+export async function startBatchEdit(taskIds) {
+  if (!Array.isArray(taskIds) || taskIds.length === 0) return;
+  
+  const action = confirm(
+    `Mark all ${taskIds.length} selected tasks as complete?`
+  );
+  
+  if (action) {
+    try {
+      // Use TaskOperations for consistency
+      for (const taskId of taskIds) {
+        await TaskOperations.task.toggleCompletion(taskId);
+      }
+      console.log(`Batch completed ${taskIds.length} tasks`);
+    } catch (error) {
+      console.error('Batch edit failed:', error);
+      alert('Some tasks could not be updated. Please try again.');
+    }
+  }
 }
