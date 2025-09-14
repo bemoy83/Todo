@@ -37,7 +37,7 @@ export const SWIPE = {
   FLING_EXPIRE: 80,          // Keep same
   
   // === Deliberate Gesture Threshold ===
-  DELIBERATE_MIN: 65,        // Reduced from 80px - easier snap open
+  DELIBERATE_MIN: 90,        // Reduced from 80px - easier snap open
   
   // === Animation Timing ===
   SNAP_MS: 150,              // Keep same
