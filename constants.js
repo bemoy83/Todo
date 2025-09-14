@@ -27,29 +27,45 @@ export const DRAG = {
 // ---- Swipe thresholds (industry-standard tuning for 60-120 Hz displays) ----
 export const SWIPE = {
   // === Gesture Recognition ===
-  HOLD_MS: 600,              // ms - Long press timing (iOS: 500ms, Android: 600-800ms)
-  MIN_INTENT_DISTANCE: 40,   // px - Minimum distance to confirm intentional swipe
-  VERTICAL_GUARD: 12,        // px - Vertical movement tolerance before canceling
+  HOLD_MS: 500,              // Reduced from 600ms - quicker hold trigger
+  MIN_INTENT_DISTANCE: 30,   // Reduced from 40px - easier to start
+  VERTICAL_GUARD: 12,        // Keep same
   
   // === Velocity-Based Fling Detection ===
-  FLING_VX: 0.8,             // px/ms - Minimum velocity for fling (~800 px/s, iOS standard)
-  FLING_MIN: 32,             // px - Minimum distance for fling to qualify
-  FLING_EXPIRE: 80,          // ms - Velocity sample freshness window
+  FLING_VX: 0.6,             // Reduced from 0.8 - easier fling trigger
+  FLING_MIN: 25,             // Reduced from 32px - shorter fling distance
+  FLING_EXPIRE: 80,          // Keep same
   
   // === Deliberate Gesture Threshold ===
-  DELIBERATE_MIN: 80,        // px - Distance for slow but intentional swipes
+  DELIBERATE_MIN: 65,        // Reduced from 80px - easier snap open
   
   // === Animation Timing ===
-  SNAP_MS: 150,              // ms - Snap to position animation (smooth but responsive)
-  EXEC_MS: 140,              // ms - Execute action animation (slightly faster)
+  SNAP_MS: 150,              // Keep same
+  EXEC_MS: 140,              // Keep same
   
   // === Resistance & Feel ===
-  RESISTANCE_FACTOR: 0.3,    // Over-pull resistance multiplier
-  MAX_OVEREXTEND: 1.3,       // Max overextension as multiplier of action width
+  RESISTANCE_FACTOR: 0.3,    // Keep same
+  MAX_OVEREXTEND: 1.3,       // Keep same
   
-  // === Action Button Constants (from swipe.js) ===
-  ACTION_BUTTON_SIZE: 44,    // px - Standard touch target size
-  ACTION_REVEAL_DISTANCE: 80, // px - Distance to fully reveal actions
+  // === Action Button Constants ===
+  ACTION_BUTTON_SIZE: 44,    
+  ACTION_REVEAL_DISTANCE: 70, // Reduced from 80px - reveals sooner
+};
+
+// Alternative: More sensitive settings
+export const SWIPE_SENSITIVE = {
+  HOLD_MS: 400,              // Even quicker hold
+  DELIBERATE_MIN: 50,        // Much easier snap
+  ACTION_REVEAL_DISTANCE: 60, // Very quick reveal
+  FLING_VX: 0.5,             // Easier fling
+};
+
+// Alternative: Less sensitive settings  
+export const SWIPE_CONSERVATIVE = {
+  HOLD_MS: 700,              // Longer hold required
+  DELIBERATE_MIN: 90,        // Further swipe needed
+  ACTION_REVEAL_DISTANCE: 90, // More pull needed
+  FLING_VX: 1.0,             // Harder fling
 };
 
 // Add to constants.js
