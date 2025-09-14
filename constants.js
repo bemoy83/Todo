@@ -70,7 +70,7 @@ export const SWIPE_CONSERVATIVE = {
 
 // Add to constants.js
 export const SWIPE_UI = {
-  REVEAL_DISTANCE: 100,        // px - Distance to fully reveal actions
+  REVEAL_DISTANCE: 90,        // px - Distance to fully reveal actions
   BUTTON_SIZE: 44,            // px - Action button size (use --size-md)
   PULSE_SCALE: 1.15,          // Scale factor for pulse animation
   HOLD_SCALE: 1.05,           // Scale factor during hold
