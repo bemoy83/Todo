@@ -1,0 +1,42 @@
+/* CSS Variables */
+:root{
+  --bg: #f1f3f5;
+  --card: #ffffff;
+  --text: #212529;
+  --muted: #6c757d;
+  --border: #e9ecef;
+  --radius: 12px;
+  --radius-sm: 10px;
+  --shadow: 0 4px 10px rgba(0,0,0,.08);
+  --shadow-strong: 0 10px 24px rgba(0,0,0,.14);
+  --green: #2f9e44;
+  --red: #e03131;
+  --amber: #f59f00;
+  --focus: 0 0 0 2px #00000010, 0 0 0 4px #74c0fc80;
+  --topbar-h: 56px;
+}
+
+/* Basic reset and body styles */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection & editing in form controls */
+input, textarea { 
+  -webkit-user-select: text; 
+  user-select: text; 
+  -webkit-touch-callout: default;
+  font-size: 16px; /* Prevents iOS zoom */
+  transform: translateZ(0); /* Hardware acceleration */
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; 
+  background: var(--bg); 
+  color: var(--text);
+}

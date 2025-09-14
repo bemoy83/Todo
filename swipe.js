@@ -3,7 +3,7 @@ import { pt, clamp, FLAGS, gesture } from './core.js';
 import { model } from './state.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations } from './taskOperations.js';
-import { SWIPE, ANIM } from './constants.js';
+import { SWIPE, UI, TIMING, FEEDBACK, ANIM } from './constants.js';
 import { throttle } from './utils.js';
 
 export function enableSwipe() {
