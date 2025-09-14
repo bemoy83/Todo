@@ -1,21 +1,60 @@
-/* styles.css - Complete file after all steps */
+/* styles.css - Enhanced with more CSS custom properties */
 
-/* CSS Variables */
-:root{
+:root {
+  /* Colors */
   --bg: #f1f3f5;
   --card: #ffffff;
   --text: #212529;
   --muted: #6c757d;
   --border: #e9ecef;
-  --radius: 12px;
-  --radius-sm: 10px;
-  --shadow: 0 4px 10px rgba(0,0,0,.08);
-  --shadow-strong: 0 10px 24px rgba(0,0,0,.14);
   --green: #2f9e44;
   --red: #e03131;
   --amber: #f59f00;
+  
+  /* Spacing Scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+  
+  /* Border Radius Scale */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius: 12px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+  
+  /* Size Scale */
+  --size-xs: 32px;
+  --size-sm: 40px;
+  --size-md: 44px;
+  --size-lg: 56px;
+  --size-xl: 60px;
+  
+  /* Layout */
+  --topbar-h: var(--size-lg);
+  --app-max-width: 680px;
+  --card-min-height: var(--size-xl);
+  --subtask-min-height: var(--size-lg);
+  
+  /* Shadows */
+  --shadow: 0 4px 10px rgba(0,0,0,.08);
+  --shadow-strong: 0 10px 24px rgba(0,0,0,.14);
   --focus: 0 0 0 2px #00000010, 0 0 0 4px #74c0fc80;
-  --topbar-h: 56px;
+  
+  /* Timing */
+  --timing-fast: 140ms;
+  --timing-normal: 200ms;
+  --timing-slow: 300ms;
+  --easing: ease-out;
+  
+  /* Z-index scale */
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-modal: 1200;
 }
 
 /* Basic reset and body styles */
@@ -27,13 +66,12 @@
   user-select: none;
 }
 
-/* Allow text selection & editing in form controls */
 input, textarea { 
   -webkit-user-select: text; 
   user-select: text; 
   -webkit-touch-callout: default;
-  font-size: 16px; /* Prevents iOS zoom */
-  transform: translateZ(0); /* Hardware acceleration */
+  font-size: 16px;
+  transform: translateZ(0);
 }
 
 body {
@@ -43,26 +81,26 @@ body {
   color: var(--text);
 }
 
-/* Layout Styles */
+/* Layout Styles - Now using variables */
 .app { 
-  max-width: 680px; 
+  max-width: var(--app-max-width); 
   margin: 0 auto; 
-  padding: calc(var(--topbar-h) + 24px) 16px 140px; 
+  padding: calc(var(--topbar-h) + var(--space-xl)) var(--space-lg) 140px; 
   display: flex; 
   flex-direction: column; 
-  gap: 16px; 
+  gap: var(--space-lg); 
   position: relative; 
 }
 
 .topbar { 
   position: sticky; 
   top: 0; 
-  z-index: 1100; 
+  z-index: var(--z-sticky); 
   display: flex; 
   align-items: center; 
-  gap: 12px; 
+  gap: var(--space-md); 
   height: var(--topbar-h); 
-  padding: max(8px, env(safe-area-inset-top)) 12px 8px; 
+  padding: max(var(--space-sm), env(safe-area-inset-top)) var(--space-md) var(--space-sm); 
   background: rgba(255,255,255,.92); 
   backdrop-filter: saturate(180%) blur(10px); 
   border-bottom: 1px solid var(--border); 
@@ -73,23 +111,23 @@ body {
   font-size: 18px; 
 }
 
-/* Task Card Styles */
+/* Task Card Styles - Using size variables */
 .task-card { 
   background: var(--card); 
   border: 1px solid var(--border); 
   border-radius: var(--radius); 
   box-shadow: var(--shadow); 
   overflow: hidden; 
-  /*transition: transform 140ms ease-out, box-shadow 140ms ease-out; */
+  transition: transform var(--timing-fast) var(--easing), box-shadow var(--timing-fast) var(--easing); 
   will-change: transform; 
 }
 
 .card-row { 
   display: flex; 
-  gap: 12px; 
+  gap: var(--space-md); 
   align-items: center; 
-  padding: 14px; 
-  min-height: 60px; 
+  padding: var(--space-lg); 
+  min-height: var(--card-min-height); 
   touch-action: pan-y; 
 }
 
@@ -103,25 +141,25 @@ body {
   color: white; 
   background: var(--red); 
   border: 1px solid var(--border); 
-  min-width: 32px; 
+  min-width: var(--size-xs); 
   text-align: center; 
-  padding: 6px 10px; 
-  border-radius: 999px; 
+  padding: var(--radius-xs) var(--space-xs); 
+  border-radius: var(--radius-full); 
 }
 
-/* Handle Styles */
+/* Handle Styles - Using consistent sizing */
 .card-handle,
 .sub-handle { 
   flex: 0 0 auto; 
   display: flex; 
   align-items: center; 
   justify-content: center; 
-  min-width: 22px; 
-  min-height: 44px;
-  border-radius: 12px; 
+  min-width: var(--space-xl); 
+  min-height: var(--size-md);
+  border-radius: var(--radius); 
   border: 0px solid var(--border); 
   background: none; 
-  color: #6c757d; 
+  color: var(--muted); 
   font-weight: 800; 
   cursor: grab; 
   touch-action: none; 
@@ -133,31 +171,34 @@ body {
   cursor: grabbing; 
 }
 
-/* Subtask Styles */
+/* Subtask Styles - Using spacing variables */
 .subtask-list { 
   display: flex; 
   flex-direction: column; 
-  gap: 8px; 
-  padding: 10px 14px 10px; 
+  gap: var(--space-sm); 
+  padding: var(--space-sm) var(--space-lg) var(--space-sm); 
   background: #f8f9fa; 
   border-top: 1px dashed var(--border); 
 }
 
 .subtask {
   display: flex; 
-  gap: 12px; 
+  gap: var(--space-md); 
   align-items: center;
-  background: #fff; 
+  background: var(--card); 
   border: none; 
-  border-radius: var(--radius-sm);
-  min-height: 56px; 
-  padding: 10px 12px;
+  border-radius: var(--radius);
+  min-height: var(--subtask-min-height); 
+  padding: var(--space-sm) var(--space-md);
   box-shadow: var(--shadow);
   touch-action: pan-y;
-  /*transition: transform 140ms ease-out, box-shadow 140ms ease-out, opacity 140ms ease-out;*/
+  /*transition: transform var(--timing-fast) var(--easing), 
+			  box-shadow var(--timing-fast) var(--easing), 
+			  opacity var(--timing-fast) var(--easing);*/
   position: relative; 
   will-change: transform;
 }
+
 
 .sub-text { 
   flex: 1; 
@@ -179,39 +220,39 @@ body {
 /* Smooth state transitions */
 .task-card,
 .subtask {
-  transition: opacity 200ms ease, transform 200ms ease;
+  transition: opacity var(--timing-normal) ease, transform var(--timing-normal) ease;
 }
 
-/* Form Styles */
+/* Form Styles - Using size variables */
 .add-bar {
   position: fixed; 
   left: 0; 
   right: 0; 
   bottom: 0; 
-  z-index: 1000;
+  z-index: var(--z-dropdown);
   background: rgba(255,255,255,.92); 
   backdrop-filter: saturate(180%) blur(10px);
   border-top: 1px solid var(--border);
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  padding: var(--space-md) var(--space-lg) calc(var(--space-md) + env(safe-area-inset-bottom));
   display: flex; 
   justify-content: center;
 }
 
 .add-inner { 
   width: 100%; 
-  max-width: 680px; 
+  max-width: var(--app-max-width); 
   display: flex; 
-  gap: 8px; 
+  gap: var(--space-sm); 
 }
 
 .add-input { 
   flex: 1; 
-  min-height: 44px; 
+  min-height: var(--size-md); 
   border: 1px solid var(--border); 
-  border-radius: 999px; 
-  padding: 10px 12px; 
+  border-radius: var(--radius-full); 
+  padding: var(--space-sm) var(--space-md); 
   font-size: 16px; 
-  background: #fff; 
+  background: var(--card); 
 }
 
 /* Better focus indicators */
@@ -223,14 +264,14 @@ body {
 }
 
 .add-btn { 
-  min-height: 44px; 
-  min-width: 44px; 
-  padding: 0 0px; 
+  min-height: var(--size-md); 
+  min-width: var(--size-md); 
+  padding: 0; 
   border: 1px solid var(--border); 
-  border-radius: 999px; 
+  border-radius: var(--radius-full); 
   font-weight: 800; 
   background: #f1f3f5; 
-  color: #6c757d; 
+  color: var(--muted); 
   box-shadow: var(--shadow); 
   font-size: 20px; 
 }
@@ -242,19 +283,19 @@ body {
 /* Inline add-subtask form */
 .add-subtask-row { 
   display: flex; 
-  gap: 8px; 
+  gap: var(--space-sm); 
   align-items: center; 
-  padding: 8px 0 2px; 
+  padding: var(--space-sm) 0 2px; 
 }
 
 .add-subtask-row .add-sub-input { 
   flex: 1; 
-  min-height: 40px; 
+  min-height: var(--size-sm); 
   border: 1px dashed var(--border); 
-  border-radius: 999px; 
-  padding: 8px 12px; 
+  border-radius: var(--radius-full); 
+  padding: var(--space-sm) var(--space-md); 
   font-size: 16px; 
-  background: #fff; 
+  background: var(--card); 
 }
 
 .add-subtask-row .add-sub-input:focus { 
@@ -264,14 +305,13 @@ body {
 }
 
 .add-subtask-row .add-sub-btn { 
-  min-height: 32px; 
-  min-width: 32px; 
-  padding: 0 0px; 
+  min-height: var(--size-xs); 
+  min-width: var(--size-xs); 
   border: 1px solid var(--border); 
-  border-radius: 999px; 
+  border-radius: var(--radius-full); 
   font-weight: 800; 
   background: #f1f3f5; 
-  color: #6c757d; 
+  color: var(--muted); 
   box-shadow: var(--shadow); 
   font-size: 20px; 
 }
@@ -281,16 +321,17 @@ body {
   position: absolute; 
   inset: 0; 
   pointer-events: none; 
-  z-index: 999; 
+  z-index: var(--radius-full); 
 }
 
 .placeholder { 
   border: none; 
-  border-radius: 10px; 
+  border-radius: var(--radius-sm); 
   background: transparent; 
   margin: 0; 
   padding: 0; 
 }
+
 
 /* Drag Ghost Styles */
 .drag-ghost {
@@ -315,12 +356,12 @@ body {
   display: flex; 
   flex-direction: column; 
   align-items: center; 
-  gap: 8px; 
-  padding: 32px; 
+  gap: var(--space-sm); 
+  padding: var(--space-xxl); 
   color: var(--muted); 
   border: 2px dashed var(--border); 
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--card);
 }
 
 /* Loading and success states */
@@ -330,17 +371,17 @@ body {
 }
 
 .task-card.success {
-  animation: successPulse 300ms ease-out;
+  animation: successPulse var(--timing-slow) var(--easing);
 }
 
 /* Menu Button */
 .menu-btn { 
   appearance: none; 
   border: 1px solid var(--border); 
-  background: #fff; 
-  border-radius: 12px; 
-  min-width: 44px; 
-  min-height: 44px; 
+  background: var(--card); 
+  border-radius: var(--radius); 
+  min-width: var(--size-md); 
+  min-height: var(--size-md); 
   display: flex; 
   align-items: center; 
   justify-content: center; 
@@ -356,18 +397,18 @@ body {
 /* Menu Dropdown */
 .menu { 
   position: fixed; 
-  top: calc(env(safe-area-inset-top) + 12px + var(--topbar-h)); 
-  right: 12px; 
+  top: calc(env(safe-area-inset-top) + var(--space-md) + var(--topbar-h)); 
+  right: var(--space-md); 
   display: flex; 
   flex-direction: column; 
-  gap: 8px; 
-  padding: 8px; 
+  gap: var(--space-sm); 
+  padding: var(--space-sm); 
   background: transparent; 
-  z-index: 1200; 
+  z-index: var(--z-modal); 
   opacity: 0; 
   transform: translateY(-6px) scale(.98); 
   pointer-events: none; 
-  transition: opacity 120ms ease, transform 120ms ease; 
+  transition: opacity var(--timing-fast) ease, transform var(--timing-fast) ease; 
 }
 
 .menu.open { 
@@ -379,11 +420,11 @@ body {
 .menu-item { 
   display: flex; 
   align-items: center; 
-  gap: 10px; 
+  gap: var(--space-sm); 
   border: 1px solid var(--border); 
-  background: #fff; 
-  border-radius: 12px; 
-  padding: 12px 14px; 
+  background: var(--card); 
+  border-radius: var(--radius); 
+  padding: var(--space-md) var(--space-lg); 
   font-weight: 700; 
   box-shadow: var(--shadow); 
 }
@@ -410,8 +451,190 @@ body {
   .task-card, 
   .task-card.armed, 
   .subtask, 
-  .subtask.armed { 
+  .subtask.armed,
+  .card-row { 
 	transition: none !important; 
-	transform: none !important; 
-  }
+	transform: none !important; }
+  .swipe-actions .action,
+  .card-swipe-actions .action { 
+	transition: opacity 60ms linear; }
+}
+
+/* Add this to your styles.css - Swipe Gesture Styles */
+
+/* Swipe containers */
+.swipe-wrap {
+  position: relative;
+  border-radius: var(--radius-sm);
+}
+
+.card-swipe-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Swipe states */
+.swipe-wrap.swiping .subtask, .card-swipe-wrap.swiping .card-row { 
+  touch-action: none; 
+}
+
+.swipe-wrap.swiping .subtask,
+.card-swipe-wrap.swiping .card-row {
+  transition: none;
+}
+
+.lock-scroll { /*was body.lock-scroll*/
+  overflow: hidden; 
+  overscroll-behavior: none; 
+}
+
+/* Subtask swipe styles
+.subtask { 
+  will-change: transform; 
+  touch-action: pan-y;
+  position: relative;
+  background: white;
+  transition: transform 140ms ease-out, box-shadow 140ms ease-out;
+  border-radius: var(--radius-sm, 10px);
+  z-index: 1;
+}
+
+/* Task card swipe styles */
+.card-row {
+  will-change: transform;
+  touch-action: pan-y;
+  position: relative;
+  background: white;
+  transition: transform 140ms ease-out, box-shadow 140ms ease-out;
+  border-radius: var(--radius, 12px);
+  z-index: 1;
+}
+
+/* Subtask swipe actions */
+.swipe-actions { 
+  position: absolute; 
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--subtask-row-height, var(--size-lg));
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  pointer-events: none;
+  border-radius: var(--radius-sm);
+  background: #f8f9fa;
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* Task card swipe actions */
+.card-swipe-actions {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--card-row-height, var(--size-xl));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  pointer-events: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  z-index: 0;
+  background: #f8f9fa;
+  overflow: hidden;
+}
+
+/* Action zones */
+.swipe-actions .zone,
+.card-swipe-actions .zone { 
+  display: flex; 
+  align-items: center; 
+  padding: 0 var(--space-lg); 
+  gap: var(--space-sm); 
+  --reveal: 0; 
+  --pulse: 1;
+  min-height: inherit;
+  transition: background-color var(--timing-normal) ease;
+}
+
+.swipe-actions .zone.left,
+.card-swipe-actions .zone.left { 
+  justify-content: flex-start;
+  background: rgba(22, 163, 74, calc(var(--reveal) * 1.0 * var(--fade, 1)));
+  opacity: var(--fade, 1);
+  transition: opacity var(--timing-fast) ease, background-color var(--timing-fast) ease;
+}
+
+.swipe-actions .zone.right,
+.card-swipe-actions .zone.right { 
+  justify-content: flex-end;
+  background: rgba(239, 68, 68, calc(var(--reveal) * 1.0 * var(--fade, 1)));
+  opacity: var(--fade, 1);
+  transition: opacity var(--timing-fast) ease, background-color var(--timing-fast) ease;
+}
+
+/* Action buttons */
+.swipe-actions .action,
+.card-swipe-actions .action {
+  pointer-events: auto; 
+  width: var(--size-md); 
+  height: var(--size-md);
+  min-width: var(--size-md); 
+  min-height: var(--size-md); 
+  border-radius: 50%;
+  flex-shrink: 0; 
+  font-size: 20px;
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center;
+  background: var(--bg, #e5e7eb); 
+  color: var(--fg, #111827);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08); 
+  border: none; 
+  outline: none;
+  opacity: var(--reveal);
+  transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse)));
+  transition: transform var(--timing-fast) ease, opacity var(--timing-fast) ease;
+}
+
+/* Hold feedback state */
+.swipe-wrap.held .swipe-actions .action,
+.card-swipe-wrap.held .card-swipe-actions .action,
+.swipe-wrap[style*="--hold-feedback"] .swipe-actions .action,
+.card-swipe-wrap[style*="--hold-feedback"] .card-swipe-actions .action {
+  box-shadow: 0 0 0 2px rgba(59,130,246,.4), 0 2px 8px rgba(0,0,0,.12);
+  transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse) * 1.05));
+}
+
+.swipe-wrap[style*="--hold-feedback"],
+.card-swipe-wrap[style*="--hold-feedback"] {
+  background: rgba(59,130,246,.05);
+  border-radius: var(--radius);
+}
+
+/* Action button variants */
+.swipe-actions .action.complete,
+.card-swipe-actions .action.complete { 
+  --bg: var(--green); 
+  --fg: white; 
+}
+
+.swipe-actions .action.edit,
+.card-swipe-actions .action.edit { 
+  --bg: var(--muted); 
+  --fg: white; 
+}
+
+.swipe-actions .action.delete,
+.card-swipe-actions .action.delete { 
+  --bg: var(--red); 
+  --fg: white; 
+}
+
+/* Completed task styling */
+.task-card.all-completed .task-title {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.task-card.all-completed .badge {
+  background: var(--green);
 }

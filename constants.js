@@ -52,6 +52,20 @@ export const SWIPE = {
   ACTION_REVEAL_DISTANCE: 80, // px - Distance to fully reveal actions
 };
 
+// Add to constants.js
+export const SWIPE_UI = {
+  REVEAL_DISTANCE: 80,        // px - Distance to fully reveal actions
+  BUTTON_SIZE: 44,            // px - Action button size (use --size-md)
+  PULSE_SCALE: 1.15,          // Scale factor for pulse animation
+  HOLD_SCALE: 1.05,           // Scale factor during hold
+  EDGE_SCROLL: 56,            // px - Edge distance for auto-scroll
+  MAX_SCROLL_SPEED: 18,       // px - Maximum scroll speed
+  
+  // Scale factors
+  BASE_SCALE: 0.8,            // Base button scale
+  REVEAL_SCALE_FACTOR: 0.3,   // Additional scale based on reveal
+};
+
 // ---- UI Layout & Spacing ----
 export const UI = {
   // Layout
@@ -274,4 +288,5 @@ export const ALL_CONSTANTS = {
   FEATURES,
   CSS_VARS,
   UTILS,
+  SWIPE_UI,
 };
