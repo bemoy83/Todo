@@ -11,24 +11,60 @@
 </head>
 <body>
   <header class="topbar">
-    <button id="menuBtn" class="menu-btn" aria-label="Open menu" aria-haspopup="menu" aria-expanded="false" aria-controls="appMenu">☰</button>
+    <button id="menuBtn" 
+            class="menu-btn" 
+            aria-label="Open menu" 
+            aria-haspopup="menu" 
+            aria-expanded="false" 
+            aria-controls="appMenu"
+            ></button>
     <div class="topbar-title">Tasks</div>
   </header>
-  <nav id="appMenu" class="menu" role="menu" aria-hidden="true">
-    <button class="menu-item" data-menu="export" role="menuitem">Export backup</button>
-    <button class="menu-item" data-menu="import" role="menuitem">Import backup…</button>
-    <button class="menu-item danger" data-menu="clear" role="menuitem">Clear all data</button>
+  <nav  id="appMenu" 
+        class="menu" 
+        role="menu" 
+        aria-hidden="true">
+    <button class="menu-item" 
+            data-menu="export" 
+            role="menuitem"
+            >Export backup</button>
+    <button class="menu-item" 
+            data-menu="import" 
+            role="menuitem"
+            >Import backup…</button>
+    <button class="menu-item danger" 
+            data-menu="clear" 
+            role="menuitem"
+            >Clear all data</button>
   </nav>
-  <input type="file" id="importFile" accept="application/json" hidden />
-  <main class="app" id="app">
-    <div id="dragLayer" class="drag-layer" aria-hidden="true"></div>
+  <input  type="file" 
+          id="importFile" 
+          accept="application/json" 
+          hidden />
+  <main class="app" 
+        id="app">
+    <div  id="dragLayer" 
+          class="drag-layer" 
+          aria-hidden="true"></div>
   </main>
 
   <!-- Add main task bar -->
-  <form id="addMainForm" class="add-bar" autocomplete="off">
+  <form id="addMainForm" 
+        class="add-bar" 
+        autocomplete="off">
     <div class="add-inner">
-      <input id="newTaskTitle" class="add-input" name="title" type="text" inputmode="text" placeholder="Add a task…" aria-label="Add a task" maxlength="180" />
-      <button class="add-btn" type="submit" aria-label="Add task">+</button>
+      <input  id="newTaskTitle" 
+              class="add-input" 
+              name="title" 
+              type="text" 
+              inputmode="text" 
+              placeholder="Add a task…" 
+              aria-label="Add a task" 
+              maxlength="180" />
+      <button class="add-btn" 
+              type="submit" 
+              aria-label="Add task"
+              ></button>
     </div>
   </form>
   

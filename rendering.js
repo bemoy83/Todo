@@ -41,15 +41,15 @@ function renderCard(m){
   card.innerHTML = `
 	<div class="card-swipe-actions" aria-hidden="true">
 	  <div class="zone left">
-		<button class="action complete" data-act="complete-all" title="${taskCompleted ? 'Mark incomplete' : 'Complete task'}">✓</button>
+		<button class="action complete" data-act="complete-all" title="${taskCompleted ? 'Mark incomplete' : 'Complete task'}"></button>
 	  </div>
 	  <div class="zone right">
-		<button class="action edit" data-act="edit-title" title="Edit task">✏</button>
-		<button class="action delete" data-act="delete-task" title="Delete task">×</button>
+		<button class="action edit" data-act="edit-title" title="Edit task"></button>
+		<button class="action delete" data-act="delete-task" title="Delete task"></button>
 	  </div>
 	</div>
 	<div class="card-row">
-	  <div class="card-handle" aria-label="Move task" role="button">⋮⋮</div>
+	  <div class="card-handle" aria-label="Move task" role="button"></div>
 	  <div class="task-title"></div>
 	  <span class="badge"></span>
 	</div>
@@ -80,11 +80,11 @@ function renderCard(m){
 	wrap.innerHTML = `
 	  <div class="swipe-actions" aria-hidden="true">
 		<div class="zone left">
-		  <button class="action complete" data-act="complete" title="Complete">✓</button>
+		  <button class="action complete" data-act="complete" title="Complete"></button>
 		</div>
 		<div class="zone right">
-		  <button class="action edit" data-act="edit" title="Edit">✏</button>
-		  <button class="action delete" data-act="delete" title="Delete">×</button>
+		  <button class="action edit" data-act="edit" title="Edit"></button>
+		  <button class="action delete" data-act="delete" title="Delete"></button>
 		</div>
 	  </div>`;
 
@@ -93,7 +93,7 @@ function renderCard(m){
 	row.dataset.id = st.id;
 	row.dataset.mainId = m.id;
 	row.innerHTML = `
-	  <div class="sub-handle" aria-label="Drag to move" role="button">⋮⋮</div>
+	  <div class="sub-handle" aria-label="Drag to move" role="button"></div>
 	  <div class="sub-text ${st.done ? 'done' : ''}"></div>
 	`;
 	row.querySelector(".sub-text").textContent = st.text;
@@ -108,7 +108,7 @@ function renderCard(m){
   addRow.autocomplete = 'off';
   addRow.innerHTML = `
 	<input class="add-sub-input" name="subtask" type="text" inputmode="text" placeholder="Add subtask…" aria-label="Add subtask to ${m.title}" maxlength="140" />
-	<button class="add-sub-btn" type="submit" aria-label="Add subtask">＋</button>
+	<button class="add-sub-btn" type="submit" aria-label="Add subtask"></button>
   `;
   list.appendChild(addRow);
   return card;
