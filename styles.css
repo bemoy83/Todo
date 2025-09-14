@@ -99,7 +99,7 @@
 /* Add task button */
 .add-btn::before,
 .add-sub-btn::before {
-  content: "➕";
+  content: "+";
   /* Alternative options: */
   /* content: "➕"; Plus emoji */
   /* content: "✚"; Heavy plus */
@@ -135,6 +135,7 @@
 /* Icon sizing and alignment */
 .action::before,
 .add-btn::before,
+.add-sub-btn::before,
 .menu-btn::before {
   display: inline-block;
   font-style: normal;
@@ -148,8 +149,8 @@
 .action.edit::before,
 .action.complete::before,
 .menu-btn::before {
-  font-size: 20px;
-  font-weight: 300;
+ font-size: 18px;
+ font-weight: 300;
 }
 
 /* Hover effects for better UX */
@@ -342,9 +343,6 @@ button {
   padding: var(--space-sm) var(--space-md);
   box-shadow: var(--shadow);
   touch-action: pan-y;
-  /*transition: transform var(--timing-fast) var(--easing), 
-			  box-shadow var(--timing-fast) var(--easing), 
-			  opacity var(--timing-fast) var(--easing);*/
   position: relative; 
   will-change: transform;
 }
@@ -415,20 +413,33 @@ button {
   border-color: #74c0fc;
 }
 
+/* add tasks buttons */
+.add-btn,
+.add-sub-btn { 
+  border: 1px solid var(--border); 
+  border-radius: var(--radius-full); 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  background: var(--card); 
+  color: var(--muted); 
+  box-shadow: var(--shadow); 
+  font-weight: 700; 
+}
+
 .add-btn { 
   min-height: var(--size-md); 
   min-width: var(--size-md); 
-  padding: 0; 
-  border: 1px solid var(--border); 
-  border-radius: var(--radius-full); 
-  font-weight: 800; 
-  background: #f1f3f5; 
-  color: var(--muted); 
-  box-shadow: var(--shadow); 
-  font-size: 20px; 
 }
 
-.add-btn:active { 
+.add-sub-btn { 
+  min-height: var(--size-xs); 
+  min-width: var(--size-xs); 
+}
+
+.add-btn:active,
+.add-sub-btn:active,
+.menu-btn:active { 
   transform: translateY(1px); 
 }
 
@@ -437,35 +448,16 @@ button {
   display: flex; 
   gap: var(--space-sm); 
   align-items: center; 
-  padding: var(--space-sm) 0 2px; 
 }
 
-.add-subtask-row .add-sub-input { 
+.add-sub-input { 
   flex: 1; 
   min-height: var(--size-sm); 
-  border: 1px dashed var(--border); 
+  border: 1px solid var(--border); 
   border-radius: var(--radius-full); 
   padding: var(--space-sm) var(--space-md); 
   font-size: 16px; 
   background: var(--card); 
-}
-
-.add-subtask-row .add-sub-input:focus { 
-  outline: none; 
-  box-shadow: var(--focus); 
-  border-style: solid; 
-}
-
-.add-subtask-row .add-sub-btn { 
-  min-height: var(--size-xs); 
-  min-width: var(--size-xs); 
-  border: 1px solid var(--border); 
-  border-radius: var(--radius-full); 
-  font-weight: 800; 
-  background: #f1f3f5; 
-  color: var(--muted); 
-  box-shadow: var(--shadow); 
-  font-size: 20px; 
 }
 
 /* Utility Styles */
@@ -477,13 +469,12 @@ button {
 }
 
 .placeholder { 
-  border: none; 
+  border: 1px dashed var(--border); 
   border-radius: var(--radius-sm); 
-  background: transparent; 
+  background: rgba(0, 0, 0, 0.020);
   margin: 0; 
   padding: 0; 
 }
-
 
 /* Drag Ghost Styles */
 .drag-ghost {
@@ -531,48 +522,48 @@ button {
   appearance: none; 
   border: 1px solid var(--border); 
   background: var(--card); 
-  border-radius: var(--radius); 
+  border-radius: var(--radius-full); 
   min-width: var(--size-md); 
   min-height: var(--size-md); 
   display: flex; 
   align-items: center; 
   justify-content: center; 
-  font-size: 20px; 
-  font-weight: 800; 
+  font-size: var(--space-md)
+  font-weight: 700; 
   box-shadow: var(--shadow); 
-}
-
-.menu-btn:active { 
-  transform: translateY(1px); 
 }
 
 /* Menu Dropdown */
 .menu { 
   position: fixed; 
   top: calc(env(safe-area-inset-top) + var(--space-md) + var(--topbar-h)); 
-  right: var(--space-md); 
+  left: 50%; 
   display: flex; 
   flex-direction: column; 
+  border: 1px solid var(--border); 
+  border-radius: var(--radius); 
   gap: var(--space-sm); 
   padding: var(--space-sm); 
-  background: transparent; 
+  background: white; 
   z-index: var(--z-modal); 
   opacity: 0; 
-  transform: translateY(-6px) scale(.98); 
+  transform: translateX(-50%) translateY(-6px) scale(.98);
   pointer-events: none; 
+  width: min(260px, calc(100% - 24px));
   transition: opacity var(--timing-fast) ease, transform var(--timing-fast) ease; 
+  box-shadow: var(--shadow)
 }
 
 .menu.open { 
   opacity: 1; 
-  transform: translateY(0) scale(1); 
+  transform: translateX(-50%) translateY(0) scale(1);  /* ← Keep translateX(-50%) here too! */
   pointer-events: auto; 
 }
 
 .menu-item { 
-  display: flex; 
+  //display: flex; 
   align-items: center; 
-  gap: var(--space-sm); 
+  //gap: var(--space-sm); 
   border: 1px solid var(--border); 
   background: var(--card); 
   border-radius: var(--radius); 
@@ -580,11 +571,6 @@ button {
   font-weight: 700; 
   box-shadow: var(--shadow); 
 }
-
-/*.menu-item input[type="checkbox"] { 
-  width: 18px; 
-  height: 18px; 
-}*/
 
 .menu-item.danger { 
   color: var(--red); 
