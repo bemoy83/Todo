@@ -1,15 +1,14 @@
-// swipe.js – swipe gestures for both subtasks and task cards - Updated with TaskOperations
+// swipe.js - Simplified with CSS extracted
 import { pt, clamp, FLAGS, gesture } from './core.js';
-import { model } from './state.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations } from './taskOperations.js';
-import { SWIPE, SWIPE_UI, UI, TIMING, FEEDBACK, ANIM } from './constants.js';
+import { SWIPE, SWIPE_UI, TIMING } from './constants.js';
 import { throttle } from './utils.js';
 
 export function enableSwipe() {
   if (!FLAGS.swipeGestures) return;
   
-  patchCSSOnce();
+  // NO MORE CSS INJECTION! It's all in styles.css now
   
   // Re-query DOM elements every time this is called (after re-renders)
   const subtaskWraps = document.querySelectorAll('.swipe-wrap');
@@ -46,10 +45,9 @@ function attachSubtaskSwipe(wrap) {
 
   if (!row || !actions || !leftZone || !rightZone) return;
 
-  // Dynamically align action buttons with subtask row height (same as task cards)
+  // Use CSS custom properties instead of direct style manipulation
   const alignActions = () => {
     const rowRect = row.getBoundingClientRect();
-    actions.style.height = `${rowRect.height}px`;
     actions.style.setProperty('--subtask-row-height', `${rowRect.height}px`);
   };
   
@@ -67,10 +65,9 @@ function attachTaskSwipe(wrap) {
 
   if (!row || !actions || !leftZone || !rightZone) return;
 
-  // Dynamically align action buttons with card-row height
+  // Use CSS custom properties instead of direct style manipulation
   const alignActions = () => {
     const rowRect = row.getBoundingClientRect();
-    actions.style.height = `${rowRect.height}px`;
     actions.style.setProperty('--card-row-height', `${rowRect.height}px`);
   };
   
@@ -83,22 +80,19 @@ function attachTaskSwipe(wrap) {
 function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   if (!row || !actions || !leftZone || !rightZone) return;
 
-  // Gesture state
+  // Gesture state - MUCH cleaner with constants
   let startX = 0, startY = 0, currentX = 0;
-  let openX = 0; // Current open position
+  let openX = 0;
   let tracking = false, captured = false;
   let holdTimer = null, isHolding = false;
   let scrollYAtStart = 0;
   let unlockScroll = null;
-  
-  // Velocity tracking for fling detection
   let velocityTracker = [];
 
-  // Helper functions
-  const getLeftWidth = () => leftZone.getBoundingClientRect().width;
-  const getRightWidth = () => rightZone.getBoundingClientRect().width;
+  // Helper functions using constants
+  const getRevealDistance = () => SWIPE_UI.REVEAL_DISTANCE;
   const setTransform = (x) => row.style.transform = `translate3d(${Math.round(x)}px,0,0)`;
-  const haptic = () => navigator.vibrate?.(8);
+  const haptic = () => navigator.vibrate?.(SWIPE_UI.HAPTIC_DURATION || 8);
   const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Velocity tracking
@@ -114,7 +108,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     const earliest = velocityTracker[0];
     const dt = latest.time - earliest.time;
     if (dt <= 0) return 0;
-    return Math.abs(latest.x - earliest.x) / dt; // px/ms
+    return Math.abs(latest.x - earliest.x) / dt;
   }
 
   function isFling() {
@@ -156,11 +150,10 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   }
 
   function applyResistance(x) {
-    const maxLeft = getLeftWidth() * SWIPE.MAX_OVEREXTEND;
-    const maxRight = getRightWidth() * SWIPE.MAX_OVEREXTEND;
+    const maxExtend = getRevealDistance() * SWIPE.MAX_OVEREXTEND;
     
-    if (x > maxLeft) return maxLeft + (x - maxLeft) * SWIPE.RESISTANCE_FACTOR;
-    if (x < -maxRight) return -maxRight + (x + maxRight) * SWIPE.RESISTANCE_FACTOR;
+    if (x > maxExtend) return maxExtend + (x - maxExtend) * SWIPE.RESISTANCE_FACTOR;
+    if (x < -maxExtend) return -maxExtend + (x + maxExtend) * SWIPE.RESISTANCE_FACTOR;
     return x;
   }
 
@@ -183,19 +176,22 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     }
   }
 
+  // Use CSS custom properties instead of direct calculations
   const updateVisuals = throttle((x) => {
-    const leftReveal = clamp(x / Math.max(getLeftWidth(), 1), 0, 1);
-    const rightReveal = clamp(-x / Math.max(getRightWidth(), 1), 0, 1);
+    const revealDistance = getRevealDistance();
+    const leftReveal = clamp(x / revealDistance, 0, 1);
+    const rightReveal = clamp(-x / revealDistance, 0, 1);
     
     leftZone.style.setProperty('--reveal', leftReveal.toFixed(3));
     rightZone.style.setProperty('--reveal', rightReveal.toFixed(3));
-  }, 16); // Throttle to ~60fps
+  }, 16);
 
   function pulseZone(zone) {
-    zone.style.setProperty('--pulse', '1.15');
+    zone.style.setProperty('--pulse', SWIPE_UI.PULSE_SCALE);
     setTimeout(() => zone.style.setProperty('--pulse', '1'), 180);
   }
 
+  // Event handlers - much cleaner now
   function onDown(e) {
     if (gesture.drag || gesture.swipe || 
         e.target.closest('.sub-handle') || 
@@ -213,7 +209,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     gesture.swipe = true;
     
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
-
     wrap.classList.add('swiping');
     
     try { row.setPointerCapture?.(e.pointerId); } catch {}
@@ -280,7 +275,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     }
     
     if (isHolding) {
-      const targetX = dx > 0 ? getLeftWidth() : -getRightWidth();
+      const targetX = dx > 0 ? getRevealDistance() : -getRevealDistance();
       animateTo(targetX);
       openX = targetX;
       updateVisuals(targetX);
@@ -314,15 +309,15 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   }
 
   function animateTo(targetX) {
-    const duration = prefersReducedMotion() ? 80 : SWIPE.SNAP_MS;
+    const duration = prefersReducedMotion() ? TIMING.REDUCED_MOTION_DURATION : SWIPE.SNAP_MS;
     row.style.transition = `transform ${duration}ms ease`;
     setTransform(targetX);
     row.addEventListener('transitionend', () => row.style.transition = '', { once: true });
   }
 
   function afterExecute(direction) {
-    const duration = prefersReducedMotion() ? 80 : SWIPE.EXEC_MS;
-    const distance = direction === 'right' ? getLeftWidth() * 1.2 : -getRightWidth() * 1.2;
+    const duration = prefersReducedMotion() ? TIMING.REDUCED_MOTION_DURATION : SWIPE.EXEC_MS;
+    const distance = direction === 'right' ? getRevealDistance() * 1.2 : -getRevealDistance() * 1.2;
     
     row.style.transition = `transform ${duration}ms ease, opacity ${duration}ms ease`;
     setTransform(distance);
@@ -334,7 +329,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     }, duration + 10);
   }
 
-  // UPDATED performAction function to use TaskOperations
+  // Action handler - much cleaner with TaskOperations
   async function performAction(actionName) {
     try {
       if (type === 'subtask') {
@@ -371,7 +366,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
       }
     } catch (error) {
       console.error('Swipe action failed:', error);
-      // Optionally show user feedback
     }
   }
   
@@ -389,7 +383,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   row.addEventListener('pointerdown', onDown, { passive: true });
   row.addEventListener('click', closeDrawer);
   
-  // UPDATED actions click handler to use TaskOperations
   actions.addEventListener('click', async (e) => {
     const button = e.target.closest('.action');
     if (!button) return;
@@ -404,15 +397,4 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   document.addEventListener('pointerdown', (e) => {
     if (!wrap.contains(e.target)) closeDrawer();
   });
-}
-
-function patchCSSOnce() {
-  if (document.getElementById('swipeSimplePatch')) return;
-  
-  const style = document.createElement('style');
-  style.id = 'swipeSimplePatch';
-  style.textContent = `
-    /* Subtask and task card container positioning */ `;
-  
-  document.head.appendChild(style);
 }
