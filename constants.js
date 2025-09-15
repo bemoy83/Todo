@@ -27,29 +27,33 @@ export const DRAG = {
 // ---- Swipe thresholds (industry-standard tuning for 60-120 Hz displays) ----
 export const SWIPE = {
   // === Gesture Recognition ===
-  HOLD_MS: 500,              // Reduced from 600ms - quicker hold trigger
-  MIN_INTENT_DISTANCE: 30,   // Reduced from 40px - easier to start
-  VERTICAL_GUARD: 12,        // Keep same
+  HOLD_MS: 600,              
+  MIN_INTENT_DISTANCE: 40,   
+  VERTICAL_GUARD: 12,        
   
   // === Velocity-Based Fling Detection ===
-  FLING_VX: 0.6,             // Reduced from 0.8 - easier fling trigger
-  FLING_MIN: 25,             // Reduced from 32px - shorter fling distance
-  FLING_EXPIRE: 80,          // Keep same
+  FLING_VX: 0.8,             
+  FLING_MIN: 32,             
+  FLING_EXPIRE: 80,          
   
   // === Deliberate Gesture Threshold ===
-  DELIBERATE_MIN: 90,        // Reduced from 80px - easier snap open
+  DELIBERATE_MIN: 80,        
   
   // === Animation Timing ===
-  SNAP_MS: 150,              // Keep same
-  EXEC_MS: 140,              // Keep same
+  SNAP_MS: 150,              
+  EXEC_MS: 140,              
   
   // === Resistance & Feel ===
-  RESISTANCE_FACTOR: 0.3,    // Keep same
-  MAX_OVEREXTEND: 1.3,       // Keep same
+  RESISTANCE_FACTOR: 0.3,    
+  MAX_OVEREXTEND: 1.3,       
+  
+  // === NEW: Separate Reveal Distances ===
+  LEFT_REVEAL_DISTANCE: 80,   // Distance to reveal left actions (complete)
+  RIGHT_REVEAL_DISTANCE: 120, // Distance to reveal right actions (edit + delete)
   
   // === Action Button Constants ===
   ACTION_BUTTON_SIZE: 44,    
-  ACTION_REVEAL_DISTANCE: 100, // Reduced from 80px - reveals sooner
+  ACTION_REVEAL_DISTANCE: 80, // Keep this for backward compatibility
 };
 
 // Alternative: More sensitive settings
@@ -70,7 +74,7 @@ export const SWIPE_CONSERVATIVE = {
 
 // Add to constants.js
 export const SWIPE_UI = {
-  REVEAL_DISTANCE: 90,        // px - Distance to fully reveal actions
+  REVEAL_DISTANCE: 120,        // px - Distance to fully reveal actions
   BUTTON_SIZE: 44,            // px - Action button size (use --size-md)
   PULSE_SCALE: 1.15,          // Scale factor for pulse animation
   HOLD_SCALE: 1.05,           // Scale factor during hold

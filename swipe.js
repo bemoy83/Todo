@@ -79,7 +79,7 @@ function attachTaskSwipe(wrap) {
 
 function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   if (!row || !actions || !leftZone || !rightZone) return;
-
+  
   // Gesture state - MUCH cleaner with constants
   let startX = 0, startY = 0, currentX = 0;
   let openX = 0;
@@ -90,7 +90,9 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   let velocityTracker = [];
 
   // Helper functions using constants
-  const getRevealDistance = () => SWIPE_UI.REVEAL_DISTANCE;
+  // NEW: Helper functions for reveal distances
+  const getLeftRevealDistance = () => SWIPE.LEFT_REVEAL_DISTANCE || 80;
+  const getRightRevealDistance = () => SWIPE.RIGHT_REVEAL_DISTANCE || 120;
   const setTransform = (x) => row.style.transform = `translate3d(${Math.round(x)}px,0,0)`;
   const haptic = () => navigator.vibrate?.(SWIPE_UI.HAPTIC_DURATION || 8);
   const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -150,10 +152,12 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   }
 
   function applyResistance(x) {
-    const maxExtend = getRevealDistance() * SWIPE.MAX_OVEREXTEND;
+    // Use separate max distances for left and right
+    const maxLeft = getLeftRevealDistance() * SWIPE.MAX_OVEREXTEND;
+    const maxRight = getRightRevealDistance() * SWIPE.MAX_OVEREXTEND;
     
-    if (x > maxExtend) return maxExtend + (x - maxExtend) * SWIPE.RESISTANCE_FACTOR;
-    if (x < -maxExtend) return -maxExtend + (x + maxExtend) * SWIPE.RESISTANCE_FACTOR;
+    if (x > maxLeft) return maxLeft + (x - maxLeft) * SWIPE.RESISTANCE_FACTOR;
+    if (x < -maxRight) return -maxRight + (x + maxRight) * SWIPE.RESISTANCE_FACTOR;
     return x;
   }
 
@@ -178,9 +182,9 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
 
   // Use CSS custom properties instead of direct calculations
   const updateVisuals = throttle((x) => {
-    const revealDistance = getRevealDistance();
-    const leftReveal = clamp(x / revealDistance, 0, 1);
-    const rightReveal = clamp(-x / revealDistance, 0, 1);
+    // Use separate distances for left and right zones
+    const leftReveal = clamp(x / getLeftRevealDistance(), 0, 1);
+    const rightReveal = clamp(-x / getRightRevealDistance(), 0, 1);
     
     leftZone.style.setProperty('--reveal', leftReveal.toFixed(3));
     rightZone.style.setProperty('--reveal', rightReveal.toFixed(3));
@@ -275,7 +279,8 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     }
     
     if (isHolding) {
-      const targetX = dx > 0 ? getRevealDistance() : -getRevealDistance();
+      // Use appropriate reveal distance based on swipe direction
+      const targetX = dx > 0 ? getLeftRevealDistance() : -getRightRevealDistance();
       animateTo(targetX);
       openX = targetX;
       updateVisuals(targetX);
@@ -285,7 +290,12 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     }
     
     const distance = Math.abs(dx);
-    if (distance >= SWIPE.DELIBERATE_MIN) {
+    // Use different thresholds for left vs right based on their reveal distances
+    const threshold = dx > 0 ? 
+      (getLeftRevealDistance() * 0.6) :   // 60% of left reveal distance
+      (getRightRevealDistance() * 0.6);   // 60% of right reveal distance
+    
+    if (distance >= threshold) {
       if (dx > 0) {
         executeAction(type === 'task' ? 'complete-all' : 'complete', leftZone);
       } else {
