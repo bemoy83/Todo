@@ -539,11 +539,6 @@ button {
   visibility: hidden;
 }
 
-body.lock-scroll { /* was body.lock-scroll */
-  overflow: hidden; 
-  touch-action: none; 
-}
-
 /* Empty state */
 .empty {
   display: flex; 
