@@ -72,10 +72,6 @@ function onUnifiedPointerDown(e) {
 
 // Subtask drag sequence
 function startSubtaskDragSequence(e, row) {
-  e.preventDefault();
-  
-  try { row.setPointerCapture?.(e.pointerId); } catch {}
-  
   drag = row; 
   start = pt(e);
   hold = false; 
@@ -91,6 +87,11 @@ function startSubtaskDragSequence(e, row) {
     hold = true; 
     armedAt = pt(e);
     row.classList.add('armed');
+    
+    // 🔥 LOCK SCROLL IMMEDIATELY when hold activates (not when drag starts)
+    document.body.classList.add('lock-scroll');
+    lockScrollIOS(); // iOS-specific scroll prevention
+    
     if (navigator.vibrate) navigator.vibrate(5);
   }, HOLD_MS);
 
@@ -101,10 +102,6 @@ function startSubtaskDragSequence(e, row) {
 
 // Card drag sequence  
 function startCardDragSequence(e, cardRow, card) {
-  e.preventDefault();
-  
-  try { cardRow.setPointerCapture?.(e.pointerId); } catch {}
-  
   cdrag = card; 
   cstart = pt(e);
   chold = false; 
@@ -119,6 +116,11 @@ function startCardDragSequence(e, cardRow, card) {
     chold = true; 
     carmedAt = pt(e);
     cdrag.classList.add('armed');
+    
+    // 🔥 LOCK SCROLL IMMEDIATELY when hold activates
+    document.body.classList.add('lock-scroll');
+    lockScrollIOS(); // iOS-specific scroll prevention
+    
     if (navigator.vibrate) navigator.vibrate(5);
   }, HOLD_MS);
   
@@ -127,31 +129,69 @@ function startCardDragSequence(e, cardRow, card) {
   window.addEventListener('pointercancel', onCardPointerUp, { once: true });
 }
 
-  function onPointerMove(e) {
-    if (!drag) return;
+// STEP 2: Add iOS-specific scroll locking
+let iosScrollLocked = false;
+let iosPreventTouch = null;
+
+function lockScrollIOS() {
+  if (iosScrollLocked) return;
+  iosScrollLocked = true;
   
-    const samples = e.getCoalescedEvents?.() || [e];
-    const last = samples[samples.length - 1];
-    const p = pt(last);
-  
-    const dpr = window.devicePixelRatio || 1;
-    const jitter = Math.max(JITTER_PX, 6 * dpr);   // more forgiving on hi-DPI phones
-    const dx0 = Math.abs(p.x - start.x), dy0 = Math.abs(p.y - start.y);
-    if (!hold) {
-      if (dx0 > jitter || dy0 > jitter) {
-        clearTimeout(timer);
-        drag.classList.remove('armed');
-        cleanupNoDrag();
-      }
-      return;
+  // iOS-specific touch prevention
+  iosPreventTouch = (e) => {
+    // Only prevent if we're in a drag/hold state
+    if (hold || chold || started || cstarted) {
+      e.preventDefault();
     }
+  };
   
+  // Add iOS touch prevention
+  document.addEventListener('touchstart', iosPreventTouch, { passive: false });
+  document.addEventListener('touchmove', iosPreventTouch, { passive: false });
+  document.addEventListener('touchend', iosPreventTouch, { passive: false });
+}
+
+function unlockScrollIOS() {
+  if (!iosScrollLocked) return;
+  iosScrollLocked = false;
+  
+  // Remove iOS touch prevention
+  if (iosPreventTouch) {
+    document.removeEventListener('touchstart', iosPreventTouch);
+    document.removeEventListener('touchmove', iosPreventTouch);
+    document.removeEventListener('touchend', iosPreventTouch);
+    iosPreventTouch = null;
+  }
+}
+
+  function onPointerMove(e) {
+  if (!drag) return;
+  
+  const samples = e.getCoalescedEvents?.() || [e];
+  const last = samples[samples.length - 1];
+  const p = pt(last);
+  
+  const dpr = window.devicePixelRatio || 1;
+  const jitter = Math.max(JITTER_PX, 6 * dpr);
+  const dx0 = Math.abs(p.x - start.x), dy0 = Math.abs(p.y - start.y);
+  
+  if (!hold) {
+    if (dx0 > jitter || dy0 > jitter) {
+      clearTimeout(timer);
+      drag.classList.remove('armed');
+      cleanupNoDrag(); // This will unlock scroll
+    }
+    return;
+  }
+  // 🔥 PREVENT DEFAULT AGGRESSIVELY when hold is active
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (hold && !started) {
       const dx = Math.abs(p.x - armedAt.x), dy = Math.abs(p.y - armedAt.y);
       if (dx + dy > 2) startDrag(p); else return;
     } else if (!hold) return;
   
-    e.preventDefault();
     const appRect = app.getBoundingClientRect();
     const pointerCY = p.y - appRect.top;
     prevTargetY = targetY;
@@ -166,20 +206,25 @@ function startCardDragSequence(e, cardRow, card) {
     const dpr = window.devicePixelRatio || 1;
     const jitter = Math.max(JITTER_PX, 6 * dpr);
     const dx0 = Math.abs(p.x - cstart.x), dy0 = Math.abs(p.y - cstart.y);
+    
     if (!chold) {
       if (dx0 > jitter || dy0 > jitter) {
         clearTimeout(ctimer);
         cdrag.classList.remove('armed');
-        cleanupCardNoDrag();
+        cleanupCardNoDrag(); // This will unlock scroll
       }
       return;
     }
+    
+    // 🔥 PREVENT DEFAULT AGGRESSIVELY when hold is active
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (chold && !cstarted) {
       const dx = Math.abs(p.x - carmedAt.x), dy = Math.abs(p.y - carmedAt.y);
       if (dx + dy > 2) startCardDrag(p); else return;
     } else if (!chold) return;
   
-    e.preventDefault();
     const appRect = app.getBoundingClientRect();
     const pointerCY = p.y - appRect.top;
     cprevTargetY = ctargetY;
@@ -409,13 +454,43 @@ function startCardDragSequence(e, cardRow, card) {
     gesture.drag = false;
     drag = null; hold = false; started = false; start = null; armedAt = null;
     window.removeEventListener('pointermove', onPointerMove);
+    
+    // 🔥 UNLOCK SCROLL
+    document.body.classList.remove('lock-scroll');
+    unlockScrollIOS();
   }
-
+  
   function cleanupDrag() {
     if (dragLayer) dragLayer.innerHTML = '';
     gesture.drag = false;
     drag = null; ghost = null; ph = null; hold = false; started = false; start = null; armedAt = null;
     window.removeEventListener('pointermove', onPointerMove);
+    
+    // 🔥 UNLOCK SCROLL
+    document.body.classList.remove('lock-scroll');
+    unlockScrollIOS();
+  }
+  
+  function cleanupCardNoDrag() {
+    try { if (cdrag) cdrag.classList.remove('armed'); } catch {}
+    gesture.drag = false;
+    cdrag = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
+    window.removeEventListener('pointermove', onCardPointerMove);
+    
+    // 🔥 UNLOCK SCROLL
+    document.body.classList.remove('lock-scroll');
+    unlockScrollIOS();
+  }
+  
+  function cleanupCardDrag() {
+    if (dragLayer) dragLayer.innerHTML = '';
+    gesture.drag = false;
+    cdrag = null; cghost = null; cph = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
+    window.removeEventListener('pointermove', onCardPointerMove);
+    
+    // 🔥 UNLOCK SCROLL
+    document.body.classList.remove('lock-scroll');
+    unlockScrollIOS();
   }
 
   // ===== Card drag - UPDATED to work on entire card-row =====
