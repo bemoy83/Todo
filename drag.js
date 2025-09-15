@@ -74,46 +74,7 @@ function onPointerDown(e) {
 
   window.addEventListener('pointermove', onPointerMove, { passive: false });
   window.addEventListener('pointerup', onPointerUp, { once: true });
-}
-
-// ===== Card drag - UPDATED to work on entire card-row =====
-function onCardPointerDown(e) {
-  if (gesture.swipe || gesture.drag) return;
-  
-  // Look for the card-row element (not just the handle)
-  const cardRow = e.target.closest('.card-row');
-  const card = e.target.closest('.task-card');
-  if (!cardRow || !card) return;
-  
-  // Skip if clicking on interactive elements or if already editing
-  if (e.target.closest('input, textarea, button, select, label, [contenteditable="true"]') ||
-      e.target.closest('.action') || // Skip swipe action buttons
-      card.querySelector('.task-title-edit-input')) { // Skip if currently editing
-    return;
-  }
-
-  e.preventDefault();
-  
-  // Set pointer capture on the card row
-  try { cardRow.setPointerCapture?.(e.pointerId); } catch {}
-  
-  cdrag = card; 
-  cstart = pt(e);
-  chold = false; 
-  cstarted = false; 
-  carmedAt = null;
-  
-  clearTimeout(ctimer);
-  ctimer = setTimeout(() => {
-    if (!cdrag) return;
-    chold = true; 
-    carmedAt = pt(e);
-    cdrag.classList.add('armed');
-    if (navigator.vibrate) navigator.vibrate(5);
-  }, HOLD_MS);
-  
-  window.addEventListener('pointermove', onCardPointerMove, { passive: false });
-  window.addEventListener('pointerup', onCardPointerUp, { once: true });
+  window.addEventListener('pointercancel', onPointerUp, { once: true });
 }
 
   function onPointerMove(e) {
@@ -123,16 +84,17 @@ function onCardPointerDown(e) {
     const last = samples[samples.length - 1];
     const p = pt(last);
   
+    const dpr = window.devicePixelRatio || 1;
+    const jitter = Math.max(JITTER_PX, 6 * dpr);   // more forgiving on hi-DPI phones
     const dx0 = Math.abs(p.x - start.x), dy0 = Math.abs(p.y - start.y);
     if (!hold) {
-      if (dx0 > JITTER_PX || dy0 > JITTER_PX) {
+      if (dx0 > jitter || dy0 > jitter) {
         clearTimeout(timer);
         drag.classList.remove('armed');
         cleanupNoDrag();
       }
       return;
     }
-  
     if (hold && !started) {
       const dx = Math.abs(p.x - armedAt.x), dy = Math.abs(p.y - armedAt.y);
       if (dx + dy > 2) startDrag(p); else return;
@@ -150,9 +112,11 @@ function onCardPointerDown(e) {
     const samples = e.getCoalescedEvents?.() || [e];
     const p = pt(samples[samples.length - 1]);
   
+    const dpr = window.devicePixelRatio || 1;
+    const jitter = Math.max(JITTER_PX, 6 * dpr);
     const dx0 = Math.abs(p.x - cstart.x), dy0 = Math.abs(p.y - cstart.y);
     if (!chold) {
-      if (dx0 > JITTER_PX || dy0 > JITTER_PX) {
+      if (dx0 > jitter || dy0 > jitter) {
         clearTimeout(ctimer);
         cdrag.classList.remove('armed');
         cleanupCardNoDrag();
@@ -403,51 +367,45 @@ function onCardPointerDown(e) {
     window.removeEventListener('pointermove', onPointerMove);
   }
 
-  // ===== Card drag (parent reorder) — uses same smoothing tweaks =====
+  // ===== Card drag - UPDATED to work on entire card-row =====
   function onCardPointerDown(e) {
     if (gesture.swipe || gesture.drag) return;
-    const handle = e.target.closest('.card-handle');
+    
+    // Look for the card-row element (not just the handle)
+    const cardRow = e.target.closest('.card-row');
     const card = e.target.closest('.task-card');
-    if (!handle || !card) return;
+    if (!cardRow || !card) return;
+    
+    // Skip if clicking on interactive elements or if already editing
+    if (e.target.closest('input, textarea, button, select, label, [contenteditable="true"]') ||
+        e.target.closest('.action') || // Skip swipe action buttons
+        card.querySelector('.task-title-edit-input')) { // Skip if currently editing
+      return;
+    }
+  
     e.preventDefault();
-    try { handle.setPointerCapture?.(e.pointerId); } catch {}
-    cdrag = card; cstart = pt(e);
-    chold = false; cstarted = false; carmedAt = null;
+    
+    // Set pointer capture on the card row
+    try { cardRow.setPointerCapture?.(e.pointerId); } catch {}
+    
+    cdrag = card; 
+    cstart = pt(e);
+    chold = false; 
+    cstarted = false; 
+    carmedAt = null;
+    
     clearTimeout(ctimer);
     ctimer = setTimeout(() => {
       if (!cdrag) return;
-      chold = true; carmedAt = pt(e);
+      chold = true; 
+      carmedAt = pt(e);
       cdrag.classList.add('armed');
       if (navigator.vibrate) navigator.vibrate(5);
     }, HOLD_MS);
+    
     window.addEventListener('pointermove', onCardPointerMove, { passive: false });
     window.addEventListener('pointerup', onCardPointerUp, { once: true });
-  }
-
-  function onCardPointerMove(e) {
-    if (!cdrag) return;
-    const samples = e.getCoalescedEvents?.() || [e];
-    const p = pt(samples[samples.length - 1]);
-
-    const dx0 = Math.abs(p.x - cstart.x), dy0 = Math.abs(p.y - cstart.y);
-    if (!chold) {
-      if (dx0 > JITTER_PX || dy0 > JITTER_PX) {
-        clearTimeout(ctimer);
-        cdrag.classList.remove('armed');
-        cleanupCardNoDrag();
-      }
-      return;
-    }
-    if (chold && !cstarted) {
-      const dx = Math.abs(p.x - carmedAt.x), dy = Math.abs(p.y - carmedAt.y);
-      if (dx + dy > 2) startCardDrag(p); else return;
-    } else if (!chold) return;
-
-    e.preventDefault();
-    const appRect = app.getBoundingClientRect();
-    const pointerCY = p.y - appRect.top;
-    cprevTargetY = ctargetY;
-    ctargetY = pointerCY - canchorY;
+    window.addEventListener('pointercancel', onCardPointerUp, { once: true });
   }
 
   function startCardDrag(p) {
@@ -616,6 +574,19 @@ function patchCSSOnce() {
       transform: translateZ(0);
       box-shadow: 0 6px 14px rgba(0,0,0,.12);
     }
+
+    /* New: allow vertical page scroll but stop UA from hijacking long-press/horizontal */
+    .subtask,
+    .card-row,
+    .swipe-wrap {
+      touch-action: pan-y;           /* keep vertical scroll, block UA horizontal/long-press */
+      -ms-touch-action: pan-y;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;   /* stop iOS long-press callout */
+    }
+
+    /* Old handles can stay harmlessly */
     .sub-handle, .card-handle { touch-action: none; }
   `;
   document.head.appendChild(style);
