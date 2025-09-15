@@ -354,7 +354,9 @@ button {
   touch-action: pan-y;
   position: relative;
   background: var(--card);
-  transition: transform var(--timing-fast) ease-out, box-shadow var(--timing-fast) ease-out;
+  transition: transform var(--timing-fast) var(--easing), 
+              box-shadow var(--timing-fast) var(--easing), 
+              opacity var(--timing-fast) var(--easing);
   border-radius: var(--radius) var(--radius) 0 0;
   z-index: 1;
 }

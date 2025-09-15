@@ -7,65 +7,122 @@ import { DRAG } from './constants.js';
 const { HOLD_MS, JITTER_PX, GATE, FORCE, FOLLOW_MIN, FOLLOW_MAX, SPEED_GAIN, GAP_GAIN, SNAP_EPS } = DRAG;
 
 export function bindCrossSortContainer() {
-  const app = document.getElementById('app');
-  const dragLayer = document.getElementById('dragLayer');
-  if (!app || !dragLayer) return;
+const app = document.getElementById('app');
+const dragLayer = document.getElementById('dragLayer');
+if (!app || !dragLayer) return;
 
-  patchCSSOnce();
+patchCSSOnce();
 
-  // Helpers
-  const getRows = (list) => Array.from(list.children).filter(n => n.classList?.contains('swipe-wrap'));
-  const tailAnchor = (list) => list.querySelector('.add-subtask-form');
+// Helpers
+const getRows = (list) => Array.from(list.children).filter(n => n.classList?.contains('swipe-wrap'));
+const tailAnchor = (list) => list.querySelector('.add-subtask-form');
 
-  // ----- Subtask drag state -----
-  let drag = null, ghost = null, ph = null;
-  let start = null, hold = false, armedAt = null, timer = null, started = false;
-  let anchorY = 0, railLeft = 0, sourceMainId = null, gw = 0, gh = 0;
-  let targetY = 0, smoothY = 0, ticking = false, prevTargetY = 0, prevStepY = 0;
-  let slotOriginCenterY = 0, lastFrameT = 0;
+// ----- Subtask drag state -----
+let drag = null, ghost = null, ph = null;
+let start = null, hold = false, armedAt = null, timer = null, started = false;
+let anchorY = 0, railLeft = 0, sourceMainId = null, gw = 0, gh = 0;
+let targetY = 0, smoothY = 0, ticking = false, prevTargetY = 0, prevStepY = 0;
+let slotOriginCenterY = 0, lastFrameT = 0;
 
-  // ----- Card drag state -----
-  let cdrag = null, cghost = null, cph = null;
-  let cstart = null, chold = false, cstarted = false, carmedAt = null, ctimer = null;
-  let csmoothY = 0, ctargetY = 0, cprevTargetY = 0, cslotOriginCenterY = 0, canchorY = 0;
-  let cgw = 0, cgh = 0, crailLeft = 0, cardTicking = false, clastSwapY = null;
-  let cintent = 0, cintentStartY = 0;
-  const CARD_STICKY = 16, CARD_SWAP_PX = 56, CARD_EDGE_FRAC = 0.25;
+// ----- Card drag state -----
+let cdrag = null, cghost = null, cph = null;
+let cstart = null, chold = false, cstarted = false, carmedAt = null, ctimer = null;
+let csmoothY = 0, ctargetY = 0, cprevTargetY = 0, cslotOriginCenterY = 0, canchorY = 0;
+let cgw = 0, cgh = 0, crailLeft = 0, cardTicking = false, clastSwapY = null;
+let cintent = 0, cintentStartY = 0;
+const CARD_STICKY = 16, CARD_SWAP_PX = 56, CARD_EDGE_FRAC = 0.25;
 
-  app.addEventListener('pointerdown', onPointerDown, { passive: false });
-  app.addEventListener('pointerdown', onCardPointerDown, { passive: false });
+// Updated event listeners - listen on the full elements, not just handles
+app.addEventListener('pointerdown', onPointerDown, { passive: false });
+app.addEventListener('pointerdown', onCardPointerDown, { passive: false });
 
-  // ===== Subtask drag =====
-  function onPointerDown(e) {
-    if (gesture.swipe || gesture.drag) return;
-    const handle = e.target.closest('.sub-handle');
-    const row = e.target.closest('.subtask');
-    if (!handle || !row) return;
-
-    e.preventDefault();
-    try { handle.setPointerCapture?.(e.pointerId); } catch {}
-    drag = row; start = pt(e);
-    hold = false; started = false; armedAt = null; sourceMainId = row.closest('.task-card').dataset.id;
-
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      if (!drag) return;
-      hold = true; armedAt = pt(e);
-      row.classList.add('armed');
-      if (navigator.vibrate) navigator.vibrate(5);
-    }, HOLD_MS);
-
-    window.addEventListener('pointermove', onPointerMove, { passive: false });
-    window.addEventListener('pointerup', onPointerUp, { once: true });
+// ===== Subtask drag - UPDATED to work on entire subtask =====
+function onPointerDown(e) {
+  if (gesture.swipe || gesture.drag) return;
+  
+  // Look for the subtask element (not just the handle)
+  const row = e.target.closest('.subtask');
+  if (!row) return;
+  
+  // Skip if clicking on interactive elements or if already editing
+  if (e.target.closest('input, textarea, button, select, label, [contenteditable="true"]') ||
+      e.target.closest('.action') || // Skip swipe action buttons
+      row.querySelector('.subtask-edit-input')) { // Skip if currently editing
+    return;
   }
+
+  e.preventDefault();
+  
+  // Set pointer capture on the row instead of handle
+  try { row.setPointerCapture?.(e.pointerId); } catch {}
+  
+  drag = row; 
+  start = pt(e);
+  hold = false; 
+  started = false; 
+  armedAt = null; 
+  sourceMainId = row.closest('.task-card').dataset.id;
+
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    if (!drag) return;
+    hold = true; 
+    armedAt = pt(e);
+    row.classList.add('armed');
+    if (navigator.vibrate) navigator.vibrate(5);
+  }, HOLD_MS);
+
+  window.addEventListener('pointermove', onPointerMove, { passive: false });
+  window.addEventListener('pointerup', onPointerUp, { once: true });
+}
+
+// ===== Card drag - UPDATED to work on entire card-row =====
+function onCardPointerDown(e) {
+  if (gesture.swipe || gesture.drag) return;
+  
+  // Look for the card-row element (not just the handle)
+  const cardRow = e.target.closest('.card-row');
+  const card = e.target.closest('.task-card');
+  if (!cardRow || !card) return;
+  
+  // Skip if clicking on interactive elements or if already editing
+  if (e.target.closest('input, textarea, button, select, label, [contenteditable="true"]') ||
+      e.target.closest('.action') || // Skip swipe action buttons
+      card.querySelector('.task-title-edit-input')) { // Skip if currently editing
+    return;
+  }
+
+  e.preventDefault();
+  
+  // Set pointer capture on the card row
+  try { cardRow.setPointerCapture?.(e.pointerId); } catch {}
+  
+  cdrag = card; 
+  cstart = pt(e);
+  chold = false; 
+  cstarted = false; 
+  carmedAt = null;
+  
+  clearTimeout(ctimer);
+  ctimer = setTimeout(() => {
+    if (!cdrag) return;
+    chold = true; 
+    carmedAt = pt(e);
+    cdrag.classList.add('armed');
+    if (navigator.vibrate) navigator.vibrate(5);
+  }, HOLD_MS);
+  
+  window.addEventListener('pointermove', onCardPointerMove, { passive: false });
+  window.addEventListener('pointerup', onCardPointerUp, { once: true });
+}
 
   function onPointerMove(e) {
     if (!drag) return;
-
+  
     const samples = e.getCoalescedEvents?.() || [e];
     const last = samples[samples.length - 1];
     const p = pt(last);
-
+  
     const dx0 = Math.abs(p.x - start.x), dy0 = Math.abs(p.y - start.y);
     if (!hold) {
       if (dx0 > JITTER_PX || dy0 > JITTER_PX) {
@@ -75,17 +132,43 @@ export function bindCrossSortContainer() {
       }
       return;
     }
-
+  
     if (hold && !started) {
       const dx = Math.abs(p.x - armedAt.x), dy = Math.abs(p.y - armedAt.y);
       if (dx + dy > 2) startDrag(p); else return;
     } else if (!hold) return;
-
+  
     e.preventDefault();
     const appRect = app.getBoundingClientRect();
     const pointerCY = p.y - appRect.top;
     prevTargetY = targetY;
-    targetY = pointerCY - anchorY; // no rounding; we quantize at render
+    targetY = pointerCY - anchorY;
+  }
+  
+  function onCardPointerMove(e) {
+    if (!cdrag) return;
+    const samples = e.getCoalescedEvents?.() || [e];
+    const p = pt(samples[samples.length - 1]);
+  
+    const dx0 = Math.abs(p.x - cstart.x), dy0 = Math.abs(p.y - cstart.y);
+    if (!chold) {
+      if (dx0 > JITTER_PX || dy0 > JITTER_PX) {
+        clearTimeout(ctimer);
+        cdrag.classList.remove('armed');
+        cleanupCardNoDrag();
+      }
+      return;
+    }
+    if (chold && !cstarted) {
+      const dx = Math.abs(p.x - carmedAt.x), dy = Math.abs(p.y - carmedAt.y);
+      if (dx + dy > 2) startCardDrag(p); else return;
+    } else if (!chold) return;
+  
+    e.preventDefault();
+    const appRect = app.getBoundingClientRect();
+    const pointerCY = p.y - appRect.top;
+    cprevTargetY = ctargetY;
+    ctargetY = pointerCY - canchorY;
   }
 
   function startDrag(p) {
