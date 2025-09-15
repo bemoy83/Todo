@@ -283,40 +283,6 @@ button {
   border-bottom: 1px solid var(--border); 
 }
 
-/* Task Card Styles - Using size variables 
-.task-card { 
-  background: var(--card); 
-  border: 1px solid var(--border); 
-  border-radius: var(--radius); 
-  box-shadow: var(--shadow); 
-  overflow: hidden; 
-  transition: transform var(--timing-fast) var(--easing), box-shadow var(--timing-fast) var(--easing); 
-  will-change: transform; 
-} 
-
-/* Tasks armed state 
-.task-card.armed,
-.subtask.armed { 
-  transform: scale(1.01); 
-  box-shadow: var(--shadow-strong); 
-  z-index: 2; 
-}
-
-/* .subtask {
-  display: flex; 
-  gap: var(--space-md); 
-  align-items: center;
-  background: var(--card); 
-  border: none; 
-  border-radius: var(--radius);
-  min-height: var(--subtask-min-height); 
-  padding: var(--space-sm) var(--space-md);
-  box-shadow: var(--shadow);
-  touch-action: pan-y;
-  position: relative; 
-  will-change: transform;
-} */
-
 /* Task Cards - Neumorphism Style */
 .task-card { 
   background: var(--neuro-bg);
@@ -336,13 +302,13 @@ button {
     -8px -8px 16px var(--neuro-shadow-light);    /* Deeper shadows when armed */
 }
 
-/* Optional: Animated Hover Effects */
+/* Optional: Animated Hover Effects *
 .task-card:hover {
   transform: translateY(-1px);
   box-shadow: 
     7px 7px 14px var(--neuro-shadow-dark),
     -7px -7px 14px var(--neuro-shadow-light);
-}
+} */
 
 /* Subtasks - Smaller Neumorphism */
 .subtask {
@@ -370,34 +336,28 @@ button {
     -4px -4px 8px var(--neuro-shadow-light);     /* Slightly deeper shadows */
 }
 
-.subtask:hover {
+/* .subtask:hover {
   transform: translateY(-0.5px);
   box-shadow: 
     3px 3px 6px var(--neuro-shadow-dark),
     -3px -3px 6px var(--neuro-shadow-light);
-}
+} */
 
-.card-row { 
+/* Task card swipe styles */
+.card-row {
   display: flex; 
   gap: var(--space-md); 
   align-items: center; 
   padding: var(--space-lg); 
   min-height: var(--card-min-height); 
-  touch-action: pan-y; 
+  will-change: transform;
+  touch-action: pan-y;
+  position: relative;
+  background: var(--card);
+  transition: transform var(--timing-fast) ease-out, box-shadow var(--timing-fast) ease-out;
+  border-radius: var(--radius) var(--radius) 0 0;
+  z-index: 1;
 }
-
-/*.badge { 
-  font-weight: 600; /* Medium weight, not too heavy 
-  font-size: 13px;
-  letter-spacing: 0.02em; /* Slight spacing for small text  
-  color: white; 
-  background: var(--red); 
-  border: 1px solid var(--border); 
-  min-width: var(--space-xl); 
-  text-align: center; 
-  padding: var(--space-sm) var(--space-md); 
-  border-radius: var(--radius-full); 
-} */
 
 /* Badge - Small Neumorphic Element */
 .badge {
@@ -411,9 +371,10 @@ button {
   text-align: center; 
   padding: var(--space-sm) var(--space-md); 
   border-radius: var(--radius-full);
-  box-shadow: 
-    2px 2px 4px rgba(224, 49, 49, 0.3),         /* Red-tinted shadows */
-    -2px -2px 4px rgba(255, 255, 255, 0.8);
+  /* box-shadow: 
+    2px 2px 4px rgba(224, 49, 49, 0.3),         /* Red-tinted shadows *
+    -2px -2px 4px rgba(255, 255, 255, 0.8); */
+  box-shadow: var(--neuro-raised)
 }
 /* Handle Styles - Using consistent sizing */
 .card-handle,
@@ -443,14 +404,13 @@ button {
 .subtask-list { 
   display: flex; 
   flex-direction: column; 
-  gap: var(--space-sm); 
+  gap: var(--space-md); 
   padding: var(--space-sm) var(--space-lg) var(--space-sm); 
   background: var(--neuro-bg);
   box-shadow: var(--neuro-subtle);              /* Inset container */
   border-top: none;                               /* Remove dashed border */
   border-radius: 0 0 var(--radius-sm) var(--radius-sm); 
 }
-
 
 .sub-text {
   font-size: 15px; /* Slightly smaller than body */
@@ -491,34 +451,6 @@ button {
   gap: var(--space-sm); 
 }
 
-/* .add-input { 
-  flex: 1; 
-  min-height: var(--size-md); 
-  border: 1px solid var(--border); 
-  border-radius: var(--radius-full); 
-  padding: var(--space-sm) var(--space-md); 
-  font-size: 16px; 
-  background: var(--card); 
-}
-
-.add-sub-input { 
-  flex: 1; 
-  min-height: var(--size-sm); 
-  border: 1px solid var(--border); 
-  border-radius: var(--radius-full); 
-  padding: var(--space-sm) var(--space-md); 
-  font-size: 16px; 
-  background: var(--card); 
-}
-
-/* Better focus indicators 
-.add-input:focus,
-.add-sub-input:focus {
-  outline: none;
-  box-shadow: var(--focus);
-  border-color: #74c0fc;
-} */
-
 /* Input Fields - Inset Neumorphism */
 .add-input,
 .add-sub-input {
@@ -541,20 +473,6 @@ button {
     inset -2px -2px 4px var(--neuro-shadow-light),
     0 0 0 2px rgba(59, 130, 246, 0.3);          /* Add focus ring */
 }
-
-/* add tasks buttons 
-.add-btn,
-.add-sub-btn { 
-  border: 1px solid var(--border); 
-  border-radius: var(--radius-full); 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  background: var(--card); 
-  color: var(--muted); 
-  box-shadow: var(--shadow); 
-  font-weight: 700; 
-} */
 
 /* Buttons - Neumorphic Style */
 .add-btn,
@@ -584,11 +502,6 @@ button {
   transform: none;                                /* Remove translateY */
   box-shadow: var(--neuro-pressed);              /* Pressed/inset effect */
 }
-/* .add-btn:active,
-.add-sub-btn:active,
-.menu-btn:active { 
-  transform: translateY(1px); 
-} */
 
 /* Inline add-subtask form */
 .add-subtask-row { 
@@ -604,24 +517,6 @@ button {
   pointer-events: none; 
   z-index: var(--radius-full); 
 }
-
-/* Underneath the card after lift 
-.placeholder { 
-  border: 0px dashed var(--border); 
-  border-radius: var(--radius-sm); 
-  background: rgba(0, 0, 0, 0.205);
-  margin: 0; 
-  padding: 0; 
-}
-
-.placeholder { 
-  background: linear-gradient(145deg, #e8eaed, #f5f6f8);
-  box-shadow: 
-    inset 2px 2px 4px rgba(0,0,0,0.1),
-    inset -2px -2px 4px rgba(255,255,255,0.8);
-  border: 0px solid rgba(0,0,0,0.08);
-  border-radius: var(--radius-sm)
-} */
 
 /* Option 7: Neumorphism style (trendy) */
 .placeholder { 
@@ -644,7 +539,7 @@ button {
   visibility: hidden;
 }
 
-.lock-scroll { /* was body.lock-scroll */
+body.lock-scroll { /* was body.lock-scroll */
   overflow: hidden; 
   touch-action: none; 
 }
@@ -671,27 +566,6 @@ button {
 .task-card.success {
   animation: successPulse var(--timing-slow) var(--easing);
 }
-
-/* Menu Dropdown 
-.menu { 
-  position: fixed; 
-  top: calc(env(safe-area-inset-top) + var(--space-md) + var(--topbar-h)); 
-  left: 50%; 
-  display: flex; 
-  flex-direction: column; 
-  border: 1px solid var(--border); 
-  border-radius: var(--radius); 
-  gap: var(--space-sm); 
-  padding: var(--space-sm); 
-  background: white; 
-  z-index: var(--z-modal); 
-  opacity: 0; 
-  transform: translateX(-50%) translateY(-6px) scale(.98);
-  pointer-events: none; 
-  width: min(260px, calc(100% - 24px));
-  transition: opacity var(--timing-fast) ease, transform var(--timing-fast) ease; 
-  box-shadow: var(--shadow)
-} */
 
 /* Menu - Neumorphic Panel */
 .menu {
@@ -723,22 +597,9 @@ button {
   pointer-events: auto; 
 }
 
-/*.menu-item { 
-  //display: flex; 
-  align-items: center; 
-  //gap: var(--space-sm); 
-  border: 1px solid var(--border); 
-  background: var(--card); 
-  border-radius: var(--radius); 
-  padding: var(--space-md) var(--space-lg); 
-  font-weight: 700; 
-  font-size: var(--space-md);
-  box-shadow: var(--shadow); 
-} */
-
 .menu-item {
   align-items: center;
-  background: transparent;                        /* Transparent background */
+  background: var(--card);                        /* Transparent background */
   border: none;
   border-radius: var(--radius-sm);
   padding: var(--space-md) var(--space-lg);
@@ -746,13 +607,14 @@ button {
               box-shadow var(--timing-fast) ease;
   margin: 2px;                                    /* Small margin for hover effect */
   font-weight: 700; 
-  font-size: var(--space-md);
+  font-size: var(--space-lg);
+  box-shadow: var(--neuro-raised);
 }
 
-.menu-item:hover {
+/* .menu-item:hover {
   background: var(--neuro-bg);
-  box-shadow: var(--neuro-pressed);              /* Inset on hover */
-}
+  box-shadow: var(--neuro-pressed);              /* Inset on hover *
+} */
 
 .menu-item:active {
   box-shadow: 
@@ -813,28 +675,6 @@ button {
   overscroll-behavior: none; 
 }
 
-/* Subtask swipe styles
-.subtask { 
-  will-change: transform; 
-  touch-action: pan-y;
-  position: relative;
-  background: white;
-  transition: transform 140ms ease-out, box-shadow 140ms ease-out;
-  border-radius: var(--radius-sm, 10px);
-  z-index: 1;
-}
-
-/* Task card swipe styles */
-.card-row {
-  will-change: transform;
-  touch-action: pan-y;
-  position: relative;
-  background: white;
-  transition: transform var(--timing-fast) ease-out, box-shadow var(--timing-fast) ease-out;
-  border-radius: var(--radius);
-  z-index: 1;
-}
-
 /* Base swipe actions (shared styles) */
 .swipe-actions,
 .card-swipe-actions { 
@@ -881,39 +721,17 @@ button {
 .card-swipe-actions .zone.left { 
   justify-content: flex-start;
   //background: rgba(22, 163, 74, calc(var(--reveal) * 1.0));
-  background: rgba(86, 93, 95, calc(var(--reveal) * 1.0));
+  background: var(--neuro-bg);
+  box-shadow: var(--neuro-pressed);
 }
 
 .swipe-actions .zone.right,
 .card-swipe-actions .zone.right { 
   justify-content: flex-end;
   //background: rgba(239, 68, 68, calc(var(--reveal) * 1.0));
-  background: rgba(86, 93, 95, calc(var(--reveal) * 1.0));
+  background: var(--neuro-bg);
+  box-shadow: var(--neuro-pressed);
 }
-
-/* Action buttons 
-.swipe-actions .action,
-.card-swipe-actions .action {
-  pointer-events: auto; 
-  width: var(--size-sm); 
-  height: var(--size-sm);
-  min-width: var(--size-xs); 
-  min-height: var(--size-xs); 
-  border-radius: 50%;
-  flex-shrink: 0; 
-  font-size: 20px;
-  display: inline-flex; 
-  align-items: center; 
-  justify-content: center;
-  background: var(--bg, #e5e7eb); 
-  color: var(--fg, #111827);
-  //box-shadow: 0 2px 8px rgba(0,0,0,.08); 
-  border: none; 
-  outline: none;
-  opacity: var(--reveal);
-  transform: scale(calc((0.2 + var(--reveal) * 0.8) * var(--pulse)));
-  transition: transform var(--timing-fast) ease, opacity var(--timing-fast) ease;
-} */
 
 /* Action Buttons (Swipe Actions) - Neumorphic */
 .swipe-actions .action,
@@ -922,9 +740,16 @@ button {
   width: var(--size-sm); 
   height: var(--size-sm);
   border-radius: 50%;
+  flex-shrink: 0; 
+  font-size: 20px;
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center;
   background: var(--neuro-bg);                   /* Use neuro background */
   box-shadow: var(--neuro-subtle);               /* Raised effect */
   border: none;                                   /* Remove border */
+  opacity: var(--reveal);
+  transform: scale(calc((0.2 + var(--reveal) * 0.8) * var(--pulse)));
   transition: transform var(--timing-fast) ease, 
               opacity var(--timing-fast) ease,
               box-shadow var(--timing-fast) ease;
@@ -968,11 +793,11 @@ button {
 /* Shared hold feedback */
 .swipe-wrap.held .swipe-actions .action,
 .card-swipe-wrap.held .card-swipe-actions .action {
-  box-shadow: 0 0 0 1px white; // rgba(59,130,246,.4), 0 2px 8px rgba(0,0,0,.12);
+  //box-shadow: 0 0 0 1px white; // rgba(59,130,246,.4), 0 2px 8px rgba(0,0,0,.12);
   transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse) * 1.05));
 }
 
-.swipe-wrap[style*="--hold-feedback"],
+/*.swipe-wrap[style*="--hold-feedback"],
 .card-swipe-wrap[style*="--hold-feedback"] {
   background: rgba(59,130,246,.05);
   border-radius: var(--radius);
