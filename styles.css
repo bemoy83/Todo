@@ -321,7 +321,7 @@ button {
   min-height: var(--subtask-min-height); 
   padding: var(--space-sm) var(--space-md);
   box-shadow: var(--neuro-subtle);               /* Subtler shadows for subtasks */
-  touch-action: pan-y;
+  touch-action: manipulation;
   transition: transform var(--timing-fast) var(--easing), 
               box-shadow var(--timing-fast) var(--easing), 
               opacity var(--timing-fast) var(--easing);
@@ -351,7 +351,7 @@ button {
   padding: var(--space-lg); 
   min-height: var(--card-min-height); 
   will-change: transform;
-  touch-action: pan-y;
+  touch-action: manipulation;
   position: relative;
   background: var(--card);
   transition: transform var(--timing-fast) var(--easing), 

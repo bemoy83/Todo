@@ -210,7 +210,7 @@ function reset() {
         e.target.closest('.sub-handle') || 
         e.target.closest('.card-handle') ||
         e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
-
+  
     const p = pt(e);
     startX = p.x;
     startY = p.y;
@@ -219,7 +219,7 @@ function reset() {
     tracking = true;
     captured = false;
     isHolding = false;
-    gesture.swipe = true;
+    gesture.swipe = true; // Set swipe gesture flag immediately
     
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
     wrap.classList.add('swiping');

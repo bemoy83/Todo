@@ -32,28 +32,48 @@ let cgw = 0, cgh = 0, crailLeft = 0, cardTicking = false, clastSwapY = null;
 let cintent = 0, cintentStartY = 0;
 const CARD_STICKY = 16, CARD_SWAP_PX = 56, CARD_EDGE_FRAC = 0.25;
 
-// Updated event listeners - listen on the full elements, not just handles
-app.addEventListener('pointerdown', onPointerDown, { passive: false });
-app.addEventListener('pointerdown', onCardPointerDown, { passive: false });
+// FIXED: Use a single unified event listener instead of two competing ones
+app.addEventListener('pointerdown', onUnifiedPointerDown, { passive: false });
 
-// ===== Subtask drag - UPDATED to work on entire subtask =====
-function onPointerDown(e) {
-  if (gesture.swipe || gesture.drag) return;
-  
-  // Look for the subtask element (not just the handle)
-  const row = e.target.closest('.subtask');
-  if (!row) return;
-  
-  // Skip if clicking on interactive elements or if already editing
-  if (e.target.closest('input, textarea, button, select, label, [contenteditable="true"]') ||
-      e.target.closest('.action') || // Skip swipe action buttons
-      row.querySelector('.subtask-edit-input')) { // Skip if currently editing
-    return;
-  }
+ // UNIFIED event handler that determines what type of drag to start
+function onUnifiedPointerDown(e) {
+   if (gesture.drag) return; // Only check for drag, let swipe start first
+   
+   // Skip if clicking on interactive elements
+   if (e.target.closest('input, textarea, button, select, label, [contenteditable="true"]') ||
+       e.target.closest('.action')) { // Skip swipe action buttons
+     return;
+   }
+ 
+   // Check for card-row first (higher priority)
+   const cardRow = e.target.closest('.card-row');
+   const card = e.target.closest('.task-card');
+   
+   if (cardRow && card) {
+     // Skip if currently editing
+     if (card.querySelector('.task-title-edit-input')) return;
+     
+     console.log('🎯 Card drag detected on:', e.target);
+     startCardDragSequence(e, cardRow, card);
+     return;
+   }
+ 
+   // Check for subtask
+   const subtask = e.target.closest('.subtask');
+   if (subtask) {
+     // Skip if currently editing
+     if (subtask.querySelector('.subtask-edit-input')) return;
+     
+     console.log('🎯 Subtask drag detected on:', e.target);
+     startSubtaskDragSequence(e, subtask);
+     return;
+   }
+ }
 
+// Subtask drag sequence
+function startSubtaskDragSequence(e, row) {
   e.preventDefault();
   
-  // Set pointer capture on the row instead of handle
   try { row.setPointerCapture?.(e.pointerId); } catch {}
   
   drag = row; 
@@ -63,9 +83,11 @@ function onPointerDown(e) {
   armedAt = null; 
   sourceMainId = row.closest('.task-card').dataset.id;
 
+  console.log('⏰ Starting subtask hold timer...');
   clearTimeout(timer);
   timer = setTimeout(() => {
     if (!drag) return;
+    console.log('✅ Subtask hold timer fired!');
     hold = true; 
     armedAt = pt(e);
     row.classList.add('armed');
@@ -75,6 +97,34 @@ function onPointerDown(e) {
   window.addEventListener('pointermove', onPointerMove, { passive: false });
   window.addEventListener('pointerup', onPointerUp, { once: true });
   window.addEventListener('pointercancel', onPointerUp, { once: true });
+}
+
+// Card drag sequence  
+function startCardDragSequence(e, cardRow, card) {
+  e.preventDefault();
+  
+  try { cardRow.setPointerCapture?.(e.pointerId); } catch {}
+  
+  cdrag = card; 
+  cstart = pt(e);
+  chold = false; 
+  cstarted = false; 
+  carmedAt = null;
+  
+  console.log('⏰ Starting card hold timer...');
+  clearTimeout(ctimer);
+  ctimer = setTimeout(() => {
+    if (!cdrag) return;
+    console.log('✅ Card hold timer fired!');
+    chold = true; 
+    carmedAt = pt(e);
+    cdrag.classList.add('armed');
+    if (navigator.vibrate) navigator.vibrate(5);
+  }, HOLD_MS);
+  
+  window.addEventListener('pointermove', onCardPointerMove, { passive: false });
+  window.addEventListener('pointerup', onCardPointerUp, { once: true });
+  window.addEventListener('pointercancel', onCardPointerUp, { once: true });
 }
 
   function onPointerMove(e) {
@@ -95,6 +145,7 @@ function onPointerDown(e) {
       }
       return;
     }
+  
     if (hold && !started) {
       const dx = Math.abs(p.x - armedAt.x), dy = Math.abs(p.y - armedAt.y);
       if (dx + dy > 2) startDrag(p); else return;
@@ -575,19 +626,21 @@ function patchCSSOnce() {
       box-shadow: 0 6px 14px rgba(0,0,0,.12);
     }
 
-    /* New: allow vertical page scroll but stop UA from hijacking long-press/horizontal */
+    /* FIXED: Use manipulation instead of pan-y to allow long-press */
     .subtask,
     .card-row,
     .swipe-wrap {
-      touch-action: pan-y;           /* keep vertical scroll, block UA horizontal/long-press */
-      -ms-touch-action: pan-y;
+      touch-action: manipulation;    /* ← CHANGED: allows long-press + prevents double-tap zoom */
+      -ms-touch-action: manipulation;
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;   /* stop iOS long-press callout */
     }
 
-    /* Old handles can stay harmlessly */
-    .sub-handle, .card-handle { touch-action: none; }
+    /* Keep the original handles as-is for backwards compatibility */
+    .sub-handle, .card-handle { 
+      touch-action: none; 
+    }
   `;
   document.head.appendChild(style);
 }
