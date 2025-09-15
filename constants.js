@@ -52,8 +52,7 @@ export const SWIPE = {
   RIGHT_REVEAL_DISTANCE: 120, // Distance to reveal right actions (edit + delete)
   
   // === Action Button Constants ===
-  ACTION_BUTTON_SIZE: 44,    
-  ACTION_REVEAL_DISTANCE: 80, // Keep this for backward compatibility
+  
 };
 
 // Alternative: More sensitive settings
@@ -70,20 +69,6 @@ export const SWIPE_CONSERVATIVE = {
   DELIBERATE_MIN: 90,        // Further swipe needed
   ACTION_REVEAL_DISTANCE: 90, // More pull needed
   FLING_VX: 1.0,             // Harder fling
-};
-
-// Add to constants.js
-export const SWIPE_UI = {
-  REVEAL_DISTANCE: 120,        // px - Distance to fully reveal actions
-  BUTTON_SIZE: 44,            // px - Action button size (use --size-md)
-  PULSE_SCALE: 1.15,          // Scale factor for pulse animation
-  HOLD_SCALE: 1.05,           // Scale factor during hold
-  EDGE_SCROLL: 56,            // px - Edge distance for auto-scroll
-  MAX_SCROLL_SPEED: 18,       // px - Maximum scroll speed
-  
-  // Scale factors
-  BASE_SCALE: 0.6,            // Base button scale
-  REVEAL_SCALE_FACTOR: 0.3,   // Additional scale based on reveal
 };
 
 // ---- UI Layout & Spacing ----
@@ -308,5 +293,4 @@ export const ALL_CONSTANTS = {
   FEATURES,
   CSS_VARS,
   UTILS,
-  SWIPE_UI,
 };

@@ -2,7 +2,7 @@
 import { pt, clamp, FLAGS, gesture } from './core.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations } from './taskOperations.js';
-import { SWIPE, SWIPE_UI, TIMING } from './constants.js';
+import { SWIPE, FEEDBACK, TIMING } from './constants.js';
 import { throttle } from './utils.js';
 
 export function enableSwipe() {
@@ -94,7 +94,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   const getLeftRevealDistance = () => SWIPE.LEFT_REVEAL_DISTANCE || 80;
   const getRightRevealDistance = () => SWIPE.RIGHT_REVEAL_DISTANCE || 120;
   const setTransform = (x) => row.style.transform = `translate3d(${Math.round(x)}px,0,0)`;
-  const haptic = () => navigator.vibrate?.(SWIPE_UI.HAPTIC_DURATION || 8);
+  const haptic = () => navigator.vibrate?.(FEEDBACK.HAPTIC_MEDIUM || 8);
   const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Velocity tracking
@@ -191,7 +191,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   }, 16);
 
   function pulseZone(zone) {
-    zone.style.setProperty('--pulse', SWIPE_UI.PULSE_SCALE);
+    zone.style.setProperty('--pulse', SWIPE.PULSE_SCALE);
     setTimeout(() => zone.style.setProperty('--pulse', '1'), 180);
   }
 
