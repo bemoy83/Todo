@@ -58,7 +58,7 @@ function attachSubtaskSwipe(wrap) {
 }
 
 function attachTaskSwipe(wrap) {
-  const row = wrap.querySelector('.card-row');
+  const row = wrap.querySelector('.main-task');
   const actions = wrap.querySelector('.card-swipe-actions');
   const leftZone = actions?.querySelector('.zone.left');
   const rightZone = actions?.querySelector('.zone.right');
@@ -68,7 +68,7 @@ function attachTaskSwipe(wrap) {
   // Use CSS custom properties instead of direct style manipulation
   const alignActions = () => {
     const rowRect = row.getBoundingClientRect();
-    actions.style.setProperty('--card-row-height', `${rowRect.height}px`);
+    actions.style.setProperty('--main-task-height', `${rowRect.height}px`);
   };
   
   alignActions();
@@ -210,7 +210,7 @@ function reset() {
         e.target.closest('.sub-handle') || 
         e.target.closest('.card-handle') ||
         e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
-  
+
     const p = pt(e);
     startX = p.x;
     startY = p.y;
@@ -219,7 +219,7 @@ function reset() {
     tracking = true;
     captured = false;
     isHolding = false;
-    gesture.swipe = true; // Set swipe gesture flag immediately
+    gesture.swipe = true;
     
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
     wrap.classList.add('swiping');

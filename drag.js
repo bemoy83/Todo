@@ -45,8 +45,8 @@ function onUnifiedPointerDown(e) {
      return;
    }
  
-   // Check for card-row first (higher priority)
-   const cardRow = e.target.closest('.card-row');
+   // Check for main-task first (higher priority)
+   const cardRow = e.target.closest('.main-task');
    const card = e.target.closest('.task-card');
    
    if (cardRow && card) {
@@ -493,12 +493,12 @@ function unlockScrollIOS() {
     unlockScrollIOS();
   }
 
-  // ===== Card drag - UPDATED to work on entire card-row =====
+  // ===== Card drag - UPDATED to work on entire main-task =====
   function onCardPointerDown(e) {
     if (gesture.swipe || gesture.drag) return;
     
-    // Look for the card-row element (not just the handle)
-    const cardRow = e.target.closest('.card-row');
+    // Look for the main-task element (not just the handle)
+    const cardRow = e.target.closest('.main-task');
     const card = e.target.closest('.task-card');
     if (!cardRow || !card) return;
     
@@ -703,7 +703,7 @@ function patchCSSOnce() {
 
     /* FIXED: Use manipulation instead of pan-y to allow long-press */
     .subtask,
-    .card-row,
+    .main-task,
     .swipe-wrap {
       touch-action: manipulation;    /* ← CHANGED: allows long-press + prevents double-tap zoom */
       -ms-touch-action: manipulation;

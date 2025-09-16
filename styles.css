@@ -344,7 +344,7 @@ button {
 } */
 
 /* Task card swipe styles */
-.card-row {
+.main-task {
   display: flex; 
   gap: var(--space-md); 
   align-items: center; 
@@ -637,7 +637,7 @@ button {
   .task-card.armed, 
   .subtask, 
   .subtask.armed,
-  .card-row { 
+  .main-task { 
 	transition: none !important; 
 	transform: none !important; }
   .swipe-actions .action,
@@ -658,12 +658,12 @@ button {
 }
 
 /* Swipe states */
-.swipe-wrap.swiping .subtask, .card-swipe-wrap.swiping .card-row { 
+.swipe-wrap.swiping .subtask, .card-swipe-wrap.swiping .main-task { 
   touch-action: none; 
 }
 
 .swipe-wrap.swiping .subtask,
-.card-swipe-wrap.swiping .card-row {
+.card-swipe-wrap.swiping .main-task {
   transition: none;
 }
 
@@ -695,7 +695,7 @@ button {
 }
 
 .card-swipe-actions {
-  height: var(--card-row-height, var(--size-xl));
+  height: var(--main-task-height, var(--size-xl));
   border-radius: var(--radius) var(--radius) 0 0;
 }
 

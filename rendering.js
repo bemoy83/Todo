@@ -48,7 +48,7 @@ function renderCard(m){
 		<button class="action delete" data-act="delete-task" title="Delete task"></button>
 	  </div>
 	</div>
-	<div class="card-row">
+	<div class="main-task">
 	  <div class="card-handle" aria-label="Move task" role="button"></div>
 	  <div class="task-title"></div>
 	  <span class="badge"></span>
