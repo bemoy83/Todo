@@ -1,4 +1,4 @@
-// core.js – ES Module updated with TaskOperations
+// core.js – ES Module updated with TaskOperations and gestureManager
 
 import { bindCrossSortContainer } from './drag.js';
 import { enableSwipe } from './swipe.js';
@@ -9,6 +9,7 @@ import { setApp } from './rendering.js';
 import { renderAll } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
+import { gestureManager } from './gestureManager.js';
 
 // ===== Helpers =====
 export const $  = (s, root=document) => root.querySelector(s);
@@ -30,8 +31,6 @@ export function guard(fn){ return function guarded(){ try { return fn.apply(this
 // ---- Module state ----
 let app = null;
 let dragLayer = null;
-// shared gesture state (used by drag.js & swipe.js)
-export const gesture = { drag: false, swipe: false };
 
 // ===== Behavior wiring =====
 let crossBound = false;
@@ -154,9 +153,8 @@ export function cleanup() {
     clearTimeout(window._resizeTimer);
   }
   
-  // Reset gesture state
-  gesture.drag = false;
-  gesture.swipe = false;
+  // Clean up gesture manager
+  gestureManager.cleanup();
 }
 
 export { renderAll } from './rendering.js';

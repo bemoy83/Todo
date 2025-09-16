@@ -1,8 +1,9 @@
-// drag.js — clean ESM: drag to reorder (cards + subtasks) - Updated with TaskOperations
+// drag.js — clean ESM: drag to reorder (cards + subtasks) - Updated with gestureManager
 
-import { $, $$, pt, clamp, gesture } from './core.js';
+import { $, $$, pt, clamp } from './core.js';
 import { model } from './state.js';
 import { TaskOperations } from './taskOperations.js';
+import { gestureManager } from './gestureManager.js';
 import { DRAG } from './constants.js';
 const { HOLD_MS, JITTER_PX, GATE, FORCE, FOLLOW_MIN, FOLLOW_MAX, SPEED_GAIN, GAP_GAIN, SNAP_EPS } = DRAG;
 
@@ -37,7 +38,7 @@ app.addEventListener('pointerdown', onUnifiedPointerDown, { passive: false });
 
  // UNIFIED event handler that determines what type of drag to start
 function onUnifiedPointerDown(e) {
-   if (gesture.drag) return; // Only check for drag, let swipe start first
+   if (gestureManager.hasActiveGesture()) return; // Check if any gesture is active
    
    // Skip if clicking on interactive elements
    if (e.target.closest('input, textarea, button, select, label, [contenteditable="true"]') ||
@@ -88,9 +89,8 @@ function startSubtaskDragSequence(e, row) {
     armedAt = pt(e);
     row.classList.add('armed');
     
-    // 🔥 LOCK SCROLL IMMEDIATELY when hold activates (not when drag starts)
-    document.body.classList.add('lock-scroll');
-    lockScrollIOS(); // iOS-specific scroll prevention
+    // Lock scroll using gesture manager
+    gestureManager.lockIOSScroll();
     
     if (navigator.vibrate) navigator.vibrate(5);
   }, HOLD_MS);
@@ -117,9 +117,8 @@ function startCardDragSequence(e, cardRow, card) {
     carmedAt = pt(e);
     cdrag.classList.add('armed');
     
-    // 🔥 LOCK SCROLL IMMEDIATELY when hold activates
-    document.body.classList.add('lock-scroll');
-    lockScrollIOS(); // iOS-specific scroll prevention
+    // Lock scroll using gesture manager
+    gestureManager.lockIOSScroll();
     
     if (navigator.vibrate) navigator.vibrate(5);
   }, HOLD_MS);
@@ -127,41 +126,6 @@ function startCardDragSequence(e, cardRow, card) {
   window.addEventListener('pointermove', onCardPointerMove, { passive: false });
   window.addEventListener('pointerup', onCardPointerUp, { once: true });
   window.addEventListener('pointercancel', onCardPointerUp, { once: true });
-}
-
-// STEP 2: Add iOS-specific scroll locking
-let iosScrollLocked = false;
-let iosPreventTouch = null;
-
-function lockScrollIOS() {
-  if (iosScrollLocked) return;
-  iosScrollLocked = true;
-  
-  // iOS-specific touch prevention
-  iosPreventTouch = (e) => {
-    // Only prevent if we're in a drag/hold state
-    if (hold || chold || started || cstarted) {
-      e.preventDefault();
-    }
-  };
-  
-  // Add iOS touch prevention
-  document.addEventListener('touchstart', iosPreventTouch, { passive: false });
-  document.addEventListener('touchmove', iosPreventTouch, { passive: false });
-  document.addEventListener('touchend', iosPreventTouch, { passive: false });
-}
-
-function unlockScrollIOS() {
-  if (!iosScrollLocked) return;
-  iosScrollLocked = false;
-  
-  // Remove iOS touch prevention
-  if (iosPreventTouch) {
-    document.removeEventListener('touchstart', iosPreventTouch);
-    document.removeEventListener('touchmove', iosPreventTouch);
-    document.removeEventListener('touchend', iosPreventTouch);
-    iosPreventTouch = null;
-  }
 }
 
   function onPointerMove(e) {
@@ -179,23 +143,24 @@ function unlockScrollIOS() {
     if (dx0 > jitter || dy0 > jitter) {
       clearTimeout(timer);
       drag.classList.remove('armed');
-      cleanupNoDrag(); // This will unlock scroll
+      cleanupNoDrag();
     }
     return;
   }
-  // 🔥 PREVENT DEFAULT AGGRESSIVELY when hold is active
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (hold && !started) {
-      const dx = Math.abs(p.x - armedAt.x), dy = Math.abs(p.y - armedAt.y);
-      if (dx + dy > 2) startDrag(p); else return;
-    } else if (!hold) return;
   
-    const appRect = app.getBoundingClientRect();
-    const pointerCY = p.y - appRect.top;
-    prevTargetY = targetY;
-    targetY = pointerCY - anchorY;
+  // Prevent default when hold is active
+  e.preventDefault();
+  e.stopPropagation();
+    
+  if (hold && !started) {
+    const dx = Math.abs(p.x - armedAt.x), dy = Math.abs(p.y - armedAt.y);
+    if (dx + dy > 2) startDrag(p); else return;
+  } else if (!hold) return;
+  
+  const appRect = app.getBoundingClientRect();
+  const pointerCY = p.y - appRect.top;
+  prevTargetY = targetY;
+  targetY = pointerCY - anchorY;
   }
   
   function onCardPointerMove(e) {
@@ -211,12 +176,12 @@ function unlockScrollIOS() {
       if (dx0 > jitter || dy0 > jitter) {
         clearTimeout(ctimer);
         cdrag.classList.remove('armed');
-        cleanupCardNoDrag(); // This will unlock scroll
+        cleanupCardNoDrag();
       }
       return;
     }
     
-    // 🔥 PREVENT DEFAULT AGGRESSIVELY when hold is active
+    // Prevent default when hold is active
     e.preventDefault();
     e.stopPropagation();
     
@@ -232,8 +197,14 @@ function unlockScrollIOS() {
   }
 
   function startDrag(p) {
-    started = true; drag.classList.remove('armed'); gesture.drag = true;
-    document.body.classList.add('lock-scroll');
+    started = true; 
+    drag.classList.remove('armed'); 
+    
+    // Request drag gesture from gesture manager
+    if (!gestureManager.requestGesture('drag', drag)) {
+      cleanupNoDrag();
+      return;
+    }
 
     const r = drag.getBoundingClientRect();
     const appRect = app.getBoundingClientRect();
@@ -244,7 +215,7 @@ function unlockScrollIOS() {
     ghost.style.setProperty('--ghost-h', r.height);
     ghost.style.width = r.width + 'px';
     ghost.style.height = r.height + 'px';
-    ghost.style.willChange = 'transform, opacity'; // GPU hint
+    ghost.style.willChange = 'transform, opacity';
     gw = r.width; gh = r.height;
 
     const wrap = drag.closest('.swipe-wrap');
@@ -279,7 +250,6 @@ function unlockScrollIOS() {
     const rows = getRows(targetList);
 
     if (rows.length === 0) {
-      // Empty list → placeholder sits above the add row
       anchor ? targetList.insertBefore(ph, anchor) : targetList.appendChild(ph);
       return;
     }
@@ -294,7 +264,6 @@ function unlockScrollIOS() {
       if (ghostCenterY >= gateBot) { continue; }
     }
 
-    // Not placed mid-list → at end, just above add row
     if (!placed) {
       anchor ? targetList.insertBefore(ph, anchor) : targetList.appendChild(ph);
     }
@@ -308,7 +277,7 @@ function unlockScrollIOS() {
 
     // Adaptive alpha
     const gap = Math.abs(targetY - smoothY);
-    const vel = Math.abs(targetY - prevStepY) / dt; // px/ms
+    const vel = Math.abs(targetY - prevStepY) / dt;
     let alpha = FOLLOW_MIN + GAP_GAIN * gap + SPEED_GAIN * (vel * 1000);
     if (alpha > FOLLOW_MAX) alpha = FOLLOW_MAX;
 
@@ -356,7 +325,6 @@ function unlockScrollIOS() {
     const dirDown = targetY >= prevTargetY;
     prevTargetY = targetY;
 
-    // If entering a different list, position placeholder there
     if (ph.parentElement !== targetList) {
       insertIntoListByGate(targetList, ghostCenterY, appRect);
       const phr = ph.getBoundingClientRect();
@@ -365,14 +333,12 @@ function unlockScrollIOS() {
       return;
     }
 
-    // Local neighbors
     const before = ph.previousElementSibling?.classList?.contains('swipe-wrap') ? ph.previousElementSibling : null;
     const after  = ph.nextElementSibling?.classList?.contains('swipe-wrap') ? ph.nextElementSibling : null;
 
     let moved = false;
 
     if (dirDown && after) {
-      // move downward one slot, but never past the add row
       const content = after.querySelector('.subtask');
       const ar = content.getBoundingClientRect();
       const gate = (ar.top - appRect.top) + ar.height * GATE;
@@ -380,12 +346,11 @@ function unlockScrollIOS() {
       if (ghostCenterY >= gate || ghostCenterY >= forceGate) {
         const anchor = tailAnchor(targetList);
         const next = after.nextElementSibling;
-        const ref = (next && next !== anchor) ? next : anchor; // never pass input
+        const ref = (next && next !== anchor) ? next : anchor;
         targetList.insertBefore(ph, ref);
         moved = true;
       }
     } else if (dirDown && !after) {
-      // At the end → allow landing above input even if list has rows
       const rows = getRows(targetList);
       const last = rows[rows.length - 1];
       if (last) {
@@ -399,7 +364,6 @@ function unlockScrollIOS() {
         }
       }
     } else if (!dirDown && before) {
-      // move upward one slot
       const content = before.querySelector('.subtask');
       const br = content.getBoundingClientRect();
       const gate = (br.bottom - appRect.top) - br.height * GATE;
@@ -418,10 +382,8 @@ function unlockScrollIOS() {
     requestAnimationFrame(step);
   }
 
-  // UPDATED: Use TaskOperations for subtask reordering
   async function onPointerUp() {
     clearTimeout(timer);
-    document.body.classList.remove('lock-scroll');
     if (!started) { cleanupNoDrag(); return; }
 
     const targetList = ph.parentElement?.classList.contains('subtask-list') ? ph.parentElement : null;
@@ -435,108 +397,54 @@ function unlockScrollIOS() {
         if (n.classList?.contains('swipe-wrap')) newIndex++;
       }
       
-      // Use TaskOperations for consistent state management
       const subtaskId = drag.dataset.id;
       try {
         await TaskOperations.subtask.move(sourceMainId, subtaskId, targetMainId, newIndex);
       } catch (error) {
         console.error('Subtask drag failed:', error);
-        // TaskOperations handles the re-render, so we still cleanup
       }
     }
     
     cleanupDrag();
-    // TaskOperations handles the re-render, so we don't need to call renderAll here
   }
 
   function cleanupNoDrag() {
     try { if (drag) drag.classList.remove('armed'); } catch {}
-    gesture.drag = false;
     drag = null; hold = false; started = false; start = null; armedAt = null;
     window.removeEventListener('pointermove', onPointerMove);
-    
-    // 🔥 UNLOCK SCROLL
-    document.body.classList.remove('lock-scroll');
-    unlockScrollIOS();
+    gestureManager.unlockIOSScroll();
   }
   
   function cleanupDrag() {
     if (dragLayer) dragLayer.innerHTML = '';
-    gesture.drag = false;
     drag = null; ghost = null; ph = null; hold = false; started = false; start = null; armedAt = null;
     window.removeEventListener('pointermove', onPointerMove);
-    
-    // 🔥 UNLOCK SCROLL
-    document.body.classList.remove('lock-scroll');
-    unlockScrollIOS();
+    gestureManager.releaseGesture('drag');
   }
   
   function cleanupCardNoDrag() {
     try { if (cdrag) cdrag.classList.remove('armed'); } catch {}
-    gesture.drag = false;
     cdrag = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
     window.removeEventListener('pointermove', onCardPointerMove);
-    
-    // 🔥 UNLOCK SCROLL
-    document.body.classList.remove('lock-scroll');
-    unlockScrollIOS();
+    gestureManager.unlockIOSScroll();
   }
   
   function cleanupCardDrag() {
     if (dragLayer) dragLayer.innerHTML = '';
-    gesture.drag = false;
     cdrag = null; cghost = null; cph = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
     window.removeEventListener('pointermove', onCardPointerMove);
-    
-    // 🔥 UNLOCK SCROLL
-    document.body.classList.remove('lock-scroll');
-    unlockScrollIOS();
-  }
-
-  // ===== Card drag - UPDATED to work on entire main-task =====
-  function onCardPointerDown(e) {
-    if (gesture.swipe || gesture.drag) return;
-    
-    // Look for the main-task element (not just the handle)
-    const cardRow = e.target.closest('.main-task');
-    const card = e.target.closest('.task-card');
-    if (!cardRow || !card) return;
-    
-    // Skip if clicking on interactive elements or if already editing
-    if (e.target.closest('input, textarea, button, select, label, [contenteditable="true"]') ||
-        e.target.closest('.action') || // Skip swipe action buttons
-        card.querySelector('.task-title-edit-input')) { // Skip if currently editing
-      return;
-    }
-  
-    e.preventDefault();
-    
-    // Set pointer capture on the card row
-    try { cardRow.setPointerCapture?.(e.pointerId); } catch {}
-    
-    cdrag = card; 
-    cstart = pt(e);
-    chold = false; 
-    cstarted = false; 
-    carmedAt = null;
-    
-    clearTimeout(ctimer);
-    ctimer = setTimeout(() => {
-      if (!cdrag) return;
-      chold = true; 
-      carmedAt = pt(e);
-      cdrag.classList.add('armed');
-      if (navigator.vibrate) navigator.vibrate(5);
-    }, HOLD_MS);
-    
-    window.addEventListener('pointermove', onCardPointerMove, { passive: false });
-    window.addEventListener('pointerup', onCardPointerUp, { once: true });
-    window.addEventListener('pointercancel', onCardPointerUp, { once: true });
+    gestureManager.releaseGesture('drag');
   }
 
   function startCardDrag(p) {
-    cstarted = true; cdrag.classList.remove('armed'); gesture.drag = true;
-    document.body.classList.add('lock-scroll');
+    cstarted = true; 
+    cdrag.classList.remove('armed'); 
+    
+    // Request drag gesture from gesture manager
+    if (!gestureManager.requestGesture('drag', cdrag)) {
+      cleanupCardNoDrag();
+      return;
+    }
 
     const r = cdrag.getBoundingClientRect();
     const appRect = app.getBoundingClientRect();
@@ -576,9 +484,8 @@ function unlockScrollIOS() {
   function cardStep() {
     if (!cghost) { cardTicking = false; return; }
 
-    // adaptive smoothing for cards too
     const gap = Math.abs(ctargetY - csmoothY);
-    const vel = Math.abs(ctargetY - (csmoothY)) / 16; // rough; frames are ~16ms
+    const vel = Math.abs(ctargetY - (csmoothY)) / 16;
     let alpha = FOLLOW_MIN + GAP_GAIN * gap + SPEED_GAIN * (vel * 1000);
     if (alpha > FOLLOW_MAX) alpha = FOLLOW_MAX;
     csmoothY += (ctargetY - csmoothY) * alpha;
@@ -646,10 +553,8 @@ function unlockScrollIOS() {
     requestAnimationFrame(cardStep);
   }
 
-  // UPDATED: Use TaskOperations for card reordering
   async function onCardPointerUp() {
     clearTimeout(ctimer);
-    document.body.classList.remove('lock-scroll');
     if (!cstarted) { cleanupCardNoDrag(); return; }
 
     let newIndex = 0;
@@ -663,30 +568,13 @@ function unlockScrollIOS() {
     
     if (oldIndex !== -1) {
       try {
-        // Use TaskOperations for consistent state management
         await TaskOperations.task.move(oldIndex, newIndex);
       } catch (error) {
         console.error('Task drag failed:', error);
-        // TaskOperations handles the re-render, so we still cleanup
       }
     }
 
     cleanupCardDrag();
-    // TaskOperations handles the re-render, so we don't need to call renderAll here
-  }
-
-  function cleanupCardNoDrag() {
-    try { if (cdrag) cdrag.classList.remove('armed'); } catch {}
-    gesture.drag = false;
-    cdrag = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
-    window.removeEventListener('pointermove', onCardPointerMove);
-  }
-
-  function cleanupCardDrag() {
-    if (dragLayer) dragLayer.innerHTML = '';
-    gesture.drag = false;
-    cdrag = null; cghost = null; cph = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
-    window.removeEventListener('pointermove', onCardPointerMove);
   }
 }
 
@@ -701,18 +589,16 @@ function patchCSSOnce() {
       box-shadow: 0 6px 14px rgba(0,0,0,.12);
     }
 
-    /* FIXED: Use manipulation instead of pan-y to allow long-press */
     .subtask,
     .main-task,
     .swipe-wrap {
-      touch-action: manipulation;    /* ← CHANGED: allows long-press + prevents double-tap zoom */
+      touch-action: manipulation;
       -ms-touch-action: manipulation;
       user-select: none;
       -webkit-user-select: none;
-      -webkit-touch-callout: none;   /* stop iOS long-press callout */
+      -webkit-touch-callout: none;
     }
 
-    /* Keep the original handles as-is for backwards compatibility */
     .sub-handle, .card-handle { 
       touch-action: none; 
     }

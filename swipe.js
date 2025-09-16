@@ -1,14 +1,13 @@
-// swipe.js - Simplified with CSS extracted
-import { pt, clamp, FLAGS, gesture } from './core.js';
+// swipe.js - Simplified with gestureManager integration
+import { pt, clamp, FLAGS } from './core.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations } from './taskOperations.js';
+import { gestureManager } from './gestureManager.js';
 import { SWIPE, FEEDBACK, TIMING } from './constants.js';
 import { throttle } from './utils.js';
 
 export function enableSwipe() {
   if (!FLAGS.swipeGestures) return;
-  
-  // NO MORE CSS INJECTION! It's all in styles.css now
   
   // Re-query DOM elements every time this is called (after re-renders)
   const subtaskWraps = document.querySelectorAll('.swipe-wrap');
@@ -80,17 +79,15 @@ function attachTaskSwipe(wrap) {
 function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   if (!row || !actions || !leftZone || !rightZone) return;
   
-  // Gesture state - MUCH cleaner with constants
+  // Gesture state - using constants
   let startX = 0, startY = 0, currentX = 0;
   let openX = 0;
   let tracking = false, captured = false;
   let holdTimer = null, isHolding = false;
   let scrollYAtStart = 0;
-  let unlockScroll = null;
   let velocityTracker = [];
 
   // Helper functions using constants
-  // NEW: Helper functions for reveal distances
   const getLeftRevealDistance = () => SWIPE.LEFT_REVEAL_DISTANCE || 80;
   const getRightRevealDistance = () => SWIPE.RIGHT_REVEAL_DISTANCE || 120;
   const setTransform = (x) => row.style.transform = `translate3d(${Math.round(x)}px,0,0)`;
@@ -119,27 +116,11 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     return velocity >= SWIPE.FLING_VX && distance >= SWIPE.FLING_MIN;
   }
 
-  function lockScroll() {
-    if (unlockScroll) return;
-    document.body.classList.add('lock-scroll');
-    const preventScroll = (e) => e.preventDefault();
-    window.addEventListener('touchmove', preventScroll, { passive: false });
-    window.addEventListener('wheel', preventScroll, { passive: false });
-    unlockScroll = () => {
-      window.removeEventListener('touchmove', preventScroll);
-      window.removeEventListener('wheel', preventScroll);
-      document.body.classList.remove('lock-scroll');
-      unlockScroll = null;
-    };
-  }
-
   function cleanup() {
-    gesture.swipe = false;  // ← Make sure this is always reset
     tracking = false;
     captured = false;
     clearHoldTimer();
     isHolding = false;
-    unlockScroll?.();
     
     // Clear velocity tracker
     velocityTracker = [];
@@ -147,16 +128,19 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     // Remove any remaining event listeners
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
+    
+    // Release gesture if we had it
+    gestureManager.releaseGesture('swipe');
   }
 
 function reset() {
     openX = 0;
     setTransform(0);
     row.style.opacity = 1;
-    row.style.transition = ''; // ← Clear any lingering transitions
+    row.style.transition = '';
     updateVisuals(0);
     wrap.classList.remove('swiping', 'held');
-    wrap.style.removeProperty('--hold-feedback'); // ← Clear hold feedback
+    wrap.style.removeProperty('--hold-feedback');
     cleanup();
   }
 
@@ -200,13 +184,13 @@ function reset() {
   }, 16);
 
   function pulseZone(zone) {
-    zone.style.setProperty('--pulse', SWIPE.PULSE_SCALE);
+    zone.style.setProperty('--pulse', SWIPE.PULSE_SCALE || 1.2);
     setTimeout(() => zone.style.setProperty('--pulse', '1'), 180);
   }
 
-  // Event handlers - much cleaner now
+  // Event handlers
   function onDown(e) {
-    if (gesture.drag || gesture.swipe || 
+    if (gestureManager.hasActiveGesture() || 
         e.target.closest('.sub-handle') || 
         e.target.closest('.card-handle') ||
         e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
@@ -219,7 +203,6 @@ function reset() {
     tracking = true;
     captured = false;
     isHolding = false;
-    gesture.swipe = true;
     
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
     wrap.classList.add('swiping');
@@ -249,8 +232,14 @@ function reset() {
       }
       
       if (Math.abs(dx) >= SWIPE.MIN_INTENT_DISTANCE) {
+        // Request swipe gesture from gesture manager
+        if (!gestureManager.requestGesture('swipe', wrap)) {
+          cleanup();
+          return;
+        }
+        
         captured = true;
-        lockScroll();
+        gestureManager.lockIOSScroll();
         e.preventDefault();
         startHoldTimer();
       } else {
@@ -284,7 +273,7 @@ function reset() {
       } else {
         executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
       }
-      return; // ← Important: return early, don't continue
+      return;
     }
     
     if (isHolding) {
@@ -293,7 +282,7 @@ function reset() {
       openX = targetX;
       updateVisuals(targetX);
       wrap.style.removeProperty('--hold-feedback');
-      cleanup(); // ← Clean up immediately for hold actions
+      cleanup();
       return;
     }
     
@@ -308,14 +297,14 @@ function reset() {
       } else {
         executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
       }
-      return; // ← Important: return early
+      return;
     }
     
     // Normal snap back
     animateTo(0);
     openX = 0;
     updateVisuals(0);
-    cleanup(); // ← Clean up for normal snap back
+    cleanup();
   }
 
   function executeAction(actionName, zone) {
@@ -327,8 +316,6 @@ function reset() {
     
     // Then handle the animation and cleanup
     afterExecute(actionName.includes('complete') ? 'right' : 'left');
-    
-    // Don't call cleanup() here - let afterExecute handle it
   }
 
   function animateTo(targetX) {
@@ -340,16 +327,13 @@ function reset() {
 
   function afterExecute(direction) {
     const duration = prefersReducedMotion() ? TIMING.REDUCED_MOTION_DURATION : SWIPE.EXEC_MS;
-    // Fix: Use correct reveal distance function
     const distance = direction === 'right' ? getRightRevealDistance() * 1.2 : -getLeftRevealDistance() * 1.2;
     
     row.style.transition = `transform ${duration}ms ease, opacity ${duration}ms ease`;
     setTransform(distance);
     row.style.opacity = 0;
     
-    // Use requestAnimationFrame for better timing
     setTimeout(() => {
-      // Force cleanup before reset to avoid race conditions
       cleanup();
       
       // Reset everything
@@ -363,7 +347,7 @@ function reset() {
     }, duration + 10);
   }
 
-  // Action handler - much cleaner with TaskOperations
+  // Action handler
   async function performAction(actionName) {
     try {
       if (type === 'subtask') {
@@ -378,11 +362,10 @@ function reset() {
             await TaskOperations.subtask.toggle(mainId, subId);
             break;
           case 'edit':
-            // For edit actions, clean up immediately and don't animate
             cleanup();
             reset();
             startEditMode(row);
-            return; // Don't continue with animation
+            return;
         }
       } else if (type === 'task') {
         const taskId = wrap.closest('.task-card').dataset.id;
@@ -392,11 +375,10 @@ function reset() {
             await TaskOperations.task.toggleCompletion(taskId);
             break;
           case 'edit-title':
-            // For edit actions, clean up immediately and don't animate
             cleanup();
             reset();
             startEditTaskTitle(row);
-            return; // Don't continue with animation
+            return;
           case 'delete-task':
             await TaskOperations.task.delete(taskId);
             break;
@@ -404,7 +386,6 @@ function reset() {
       }
     } catch (error) {
       console.error('Swipe action failed:', error);
-      // On error, make sure we clean up properly
       cleanup();
       reset();
     }
