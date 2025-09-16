@@ -1,4 +1,4 @@
-// drag.js — Enhanced with better autoscroll and gesture management
+// drag.js — Enhanced with aggressive autoscroll that works during gesture lock
 
 import { $, $$, pt, clamp } from './core.js';
 import { model } from './state.js';
@@ -18,10 +18,10 @@ patchCSSOnce();
 const getRows = (list) => Array.from(list.children).filter(n => n.classList?.contains('swipe-wrap'));
 const tailAnchor = (list) => list.querySelector('.add-subtask-form');
 
-// Enhanced autoscroll function
-function performAutoscroll(ghostElement, direction = 0) {
+// ENHANCED autoscroll that works even when scroll is locked
+function performAutoscroll(ghostElement) {
   try {
-    if (!ghostElement) return;
+    if (!ghostElement) return false;
     
     const ghostRect = ghostElement.getBoundingClientRect();
     const viewport = {
@@ -30,44 +30,71 @@ function performAutoscroll(ghostElement, direction = 0) {
       height: window.innerHeight
     };
     
-    // Autoscroll configuration
-    const EDGE_THRESHOLD = 80;  // Pixels from edge to start scrolling
-    const MAX_SCROLL_SPEED = 20; // Maximum scroll speed
-    const RAMP_FACTOR = 0.8;     // How aggressive the speed ramp is
+    // Get current scroll info
+    const currentScroll = window.pageYOffset || document.documentElement.scrollTop || 0;
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - viewport.height);
+    
+    // Check if there's actually content to scroll to
+    const canScrollUp = currentScroll > 0;
+    const canScrollDown = currentScroll < maxScroll;
+    
+    if (!canScrollUp && !canScrollDown) {
+      return false; // No scrolling possible
+    }
+    
+    // More aggressive autoscroll settings
+    const EDGE_THRESHOLD = 120;  // Larger zone for easier triggering
+    const MAX_SCROLL_SPEED = 25; // Faster scrolling
+    const MIN_SCROLL_SPEED = 3;  // Minimum speed to ensure movement
     
     let scrollSpeed = 0;
+    let shouldScroll = false;
     
-    // Check if ghost is near top edge
+    // Check if ghost is near top edge (scroll up)
     const topDistance = ghostRect.top;
-    if (topDistance < EDGE_THRESHOLD && topDistance > 0) {
-      const proximity = (EDGE_THRESHOLD - topDistance) / EDGE_THRESHOLD;
-      scrollSpeed = -Math.min(MAX_SCROLL_SPEED, MAX_SCROLL_SPEED * Math.pow(proximity, RAMP_FACTOR));
+    if (topDistance < EDGE_THRESHOLD && canScrollUp) {
+      const proximity = Math.max(0, (EDGE_THRESHOLD - topDistance) / EDGE_THRESHOLD);
+      scrollSpeed = -Math.max(MIN_SCROLL_SPEED, MAX_SCROLL_SPEED * Math.pow(proximity, 0.6));
+      shouldScroll = true;
+      console.log(`🔼 Top autoscroll: ghost at ${Math.round(topDistance)}px, speed ${Math.round(scrollSpeed)}`);
     }
     
-    // Check if ghost is near bottom edge  
+    // Check if ghost is near bottom edge (scroll down)
     const bottomDistance = viewport.bottom - ghostRect.bottom;
-    if (bottomDistance < EDGE_THRESHOLD && bottomDistance > 0) {
-      const proximity = (EDGE_THRESHOLD - bottomDistance) / EDGE_THRESHOLD;
-      scrollSpeed = Math.min(MAX_SCROLL_SPEED, MAX_SCROLL_SPEED * Math.pow(proximity, RAMP_FACTOR));
+    if (bottomDistance < EDGE_THRESHOLD && canScrollDown) {
+      const proximity = Math.max(0, (EDGE_THRESHOLD - bottomDistance) / EDGE_THRESHOLD);
+      scrollSpeed = Math.max(MIN_SCROLL_SPEED, MAX_SCROLL_SPEED * Math.pow(proximity, 0.6));
+      shouldScroll = true;
+      console.log(`🔽 Bottom autoscroll: ghost at ${Math.round(bottomDistance)}px from bottom, speed ${Math.round(scrollSpeed)}`);
     }
     
-    // Only scroll if we have meaningful speed and the drag is moving in scroll direction
-    if (Math.abs(scrollSpeed) > 1) {
-      const currentScroll = window.pageYOffset || document.documentElement.scrollTop || 0;
-      const maxScroll = Math.max(0, document.documentElement.scrollHeight - viewport.height);
+    // Perform the scroll if needed
+    if (shouldScroll && Math.abs(scrollSpeed) >= MIN_SCROLL_SPEED) {
+      // Temporarily allow scrolling by bypassing the lock
+      const wasLocked = gestureManager.iosScrollLocked;
       
-      // Prevent scrolling beyond bounds
-      if ((scrollSpeed < 0 && currentScroll <= 0) || 
-          (scrollSpeed > 0 && currentScroll >= maxScroll)) {
-        return;
+      if (wasLocked) {
+        // Temporarily unlock scroll for this operation
+        gestureManager.unlockIOSScroll();
       }
       
-      // Perform the scroll
+      // Perform the actual scroll
       window.scrollBy(0, Math.round(scrollSpeed));
-      console.log(`🔄 Autoscroll: ${Math.round(scrollSpeed)}px (ghost top: ${Math.round(ghostRect.top)})`);
+      
+      if (wasLocked) {
+        // Re-lock scroll after scrolling
+        setTimeout(() => {
+          gestureManager.lockIOSScroll();
+        }, 10);
+      }
+      
+      return true; // Indicate that scrolling occurred
     }
+    
+    return false;
   } catch (error) {
     console.warn('Autoscroll failed:', error);
+    return false;
   }
 }
 
@@ -77,6 +104,7 @@ let start = null, hold = false, armedAt = null, timer = null, started = false;
 let anchorY = 0, railLeft = 0, sourceMainId = null, gw = 0, gh = 0;
 let targetY = 0, smoothY = 0, ticking = false, prevTargetY = 0, prevStepY = 0;
 let slotOriginCenterY = 0, lastFrameT = 0;
+let autoscrollActive = false; // Track autoscroll state
 
 // ----- Card drag state -----
 let cdrag = null, cghost = null, cph = null;
@@ -84,6 +112,7 @@ let cstart = null, chold = false, cstarted = false, carmedAt = null, ctimer = nu
 let csmoothY = 0, ctargetY = 0, cprevTargetY = 0, cslotOriginCenterY = 0, canchorY = 0;
 let cgw = 0, cgh = 0, crailLeft = 0, cardTicking = false, clastSwapY = null;
 let cintent = 0, cintentStartY = 0;
+let cardAutoscrollActive = false; // Track card autoscroll state
 const CARD_STICKY = 16, CARD_SWAP_PX = 56, CARD_EDGE_FRAC = 0.25;
 
 // UNIFIED event handler
@@ -289,6 +318,11 @@ function startDrag(p) {
 
   lastFrameT = performance.now();
   if (!ticking) { ticking = true; requestAnimationFrame(step); }
+  
+  // Log scroll capabilities for debugging
+  const currentScroll = window.pageYOffset || document.documentElement.scrollTop || 0;
+  const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  console.log(`🎯 Drag started - Current scroll: ${currentScroll}, Max scroll: ${maxScroll}, Can scroll: ${maxScroll > 0}`);
 }
 
 function insertIntoListByGate(targetList, ghostCenterY, appRect){
@@ -333,9 +367,16 @@ function step(now) {
   const renderY = Math.abs(targetY - smoothY) < SNAP_EPS ? targetY : smoothY;
   ghost.style.transform = `translate3d(0,${renderY}px,0)`;
 
-  // ENHANCED: Better autoscroll with direction awareness
-  const direction = targetY >= prevTargetY ? 1 : -1;
-  performAutoscroll(ghost, direction);
+  // ENHANCED: Aggressive autoscroll every frame
+  const didScroll = performAutoscroll(ghost);
+  if (didScroll !== autoscrollActive) {
+    autoscrollActive = didScroll;
+    if (didScroll) {
+      console.log('🔄 Autoscroll activated');
+    } else {
+      console.log('⏸️ Autoscroll deactivated');
+    }
+  }
 
   const appRect = app.getBoundingClientRect();
   const ghostCenterY = (renderY) + gh / 2;
@@ -442,6 +483,7 @@ async function onPointerUp() {
 function cleanupNoDrag() {
   try { if (drag) drag.classList.remove('armed'); } catch {}
   drag = null; hold = false; started = false; start = null; armedAt = null;
+  autoscrollActive = false;
   window.removeEventListener('pointermove', onPointerMove);
   gestureManager.unlockIOSScroll();
 }
@@ -449,6 +491,7 @@ function cleanupNoDrag() {
 function cleanupDrag() {
   if (dragLayer) dragLayer.innerHTML = '';
   drag = null; ghost = null; ph = null; hold = false; started = false; start = null; armedAt = null;
+  autoscrollActive = false;
   window.removeEventListener('pointermove', onPointerMove);
   gestureManager.releaseGesture('drag');
 }
@@ -456,6 +499,7 @@ function cleanupDrag() {
 function cleanupCardNoDrag() {
   try { if (cdrag) cdrag.classList.remove('armed'); } catch {}
   cdrag = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
+  cardAutoscrollActive = false;
   window.removeEventListener('pointermove', onCardPointerMove);
   gestureManager.unlockIOSScroll();
 }
@@ -463,6 +507,7 @@ function cleanupCardNoDrag() {
 function cleanupCardDrag() {
   if (dragLayer) dragLayer.innerHTML = '';
   cdrag = null; cghost = null; cph = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
+  cardAutoscrollActive = false;
   window.removeEventListener('pointermove', onCardPointerMove);
   gestureManager.releaseGesture('drag');
 }
@@ -509,6 +554,11 @@ function startCardDrag(p) {
   cslotOriginCenterY = (phr.top - appRect2.top) + phr.height / 2;
 
   if (!cardTicking) { cardTicking = true; requestAnimationFrame(cardStep); }
+  
+  // Log card scroll capabilities
+  const currentScroll = window.pageYOffset || document.documentElement.scrollTop || 0;
+  const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  console.log(`🃏 Card drag started - Current scroll: ${currentScroll}, Max scroll: ${maxScroll}`);
 }
 
 function cardStep() {
@@ -523,9 +573,16 @@ function cardStep() {
   const renderY = Math.abs(ctargetY - csmoothY) < SNAP_EPS ? ctargetY : csmoothY;
   cghost.style.transform = `translate3d(0,${renderY}px,0)`;
 
-  // ENHANCED: Better autoscroll for card dragging too
-  const direction = ctargetY >= cprevTargetY ? 1 : -1;
-  performAutoscroll(cghost, direction);
+  // ENHANCED: Aggressive autoscroll for card dragging too
+  const didScroll = performAutoscroll(cghost);
+  if (didScroll !== cardAutoscrollActive) {
+    cardAutoscrollActive = didScroll;
+    if (didScroll) {
+      console.log('🃏 Card autoscroll activated');
+    } else {
+      console.log('🃏 Card autoscroll deactivated');
+    }
+  }
 
   const appRect = app.getBoundingClientRect();
   const ghostCenterY = renderY + cgh / 2;
