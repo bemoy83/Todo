@@ -1,4 +1,4 @@
-// gestureManager.js - Simple gesture coordination for iOS
+// gestureManager.js - Fixed scroll locking to prevent screen jumps
 import { DRAG, SWIPE, FEEDBACK } from './constants.js';
 
 class GestureManager {
@@ -6,6 +6,7 @@ class GestureManager {
     this.activeGesture = null; // 'drag', 'swipe', null
     this.iosScrollLocked = false;
     this.preventTouch = null;
+    this.scrollPosition = 0; // Store scroll position before locking
     this.setupIOSOptimizations();
   }
 
@@ -41,10 +42,13 @@ class GestureManager {
     }
   }
 
-  // iOS-specific scroll locking
+  // FIXED: Smart iOS scroll locking that preserves position
   lockIOSScroll() {
     if (this.iosScrollLocked) return;
     this.iosScrollLocked = true;
+    
+    // Store current scroll position BEFORE locking
+    this.scrollPosition = window.pageYOffset || document.documentElement.scrollTop || 0;
     
     // Comprehensive iOS touch prevention
     this.preventTouch = (e) => {
@@ -61,11 +65,19 @@ class GestureManager {
     document.addEventListener('touchend', this.preventTouch, options);
     document.addEventListener('wheel', this.preventTouch, options);
     
-    // Prevent body scroll
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
-    document.body.classList.add('lock-scroll');
+    // FIXED: Smarter body scroll prevention that maintains position
+    const body = document.body;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    
+    // Apply styles that prevent scrolling but maintain position
+    body.style.overflow = 'hidden';
+    body.style.paddingRight = `${scrollbarWidth}px`; // Prevent layout shift
+    body.style.top = `-${this.scrollPosition}px`;
+    body.style.position = 'fixed';
+    body.style.width = '100%';
+    body.classList.add('lock-scroll');
+    
+    console.log(`📍 Locked scroll at position: ${this.scrollPosition}`);
   }
 
   unlockIOSScroll() {
@@ -81,11 +93,23 @@ class GestureManager {
       this.preventTouch = null;
     }
     
-    // Restore body scroll
-    document.body.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.width = '';
-    document.body.classList.remove('lock-scroll');
+    // FIXED: Restore body scroll and position smoothly
+    const body = document.body;
+    body.style.overflow = '';
+    body.style.paddingRight = '';
+    body.style.top = '';
+    body.style.position = '';
+    body.style.width = '';
+    body.classList.remove('lock-scroll');
+    
+    // Restore scroll position smoothly
+    if (this.scrollPosition > 0) {
+      // Use requestAnimationFrame for smooth restoration
+      requestAnimationFrame(() => {
+        window.scrollTo(0, this.scrollPosition);
+        console.log(`📍 Restored scroll to position: ${this.scrollPosition}`);
+      });
+    }
   }
 
   // Haptic feedback
