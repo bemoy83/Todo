@@ -1,4 +1,4 @@
-// drag.js — Enhanced with aggressive autoscroll that works during gesture lock
+// drag.js — Simplified: let browser handle scroll naturally
 
 import { $, $$, pt, clamp } from './core.js';
 import { model } from './state.js';
@@ -18,7 +18,7 @@ patchCSSOnce();
 const getRows = (list) => Array.from(list.children).filter(n => n.classList?.contains('swipe-wrap'));
 const tailAnchor = (list) => list.querySelector('.add-subtask-form');
 
-// ENHANCED autoscroll that works even when scroll is locked
+// Simple autoscroll using native browser capabilities
 function performAutoscroll(ghostElement) {
   try {
     if (!ghostElement) return false;
@@ -30,65 +30,35 @@ function performAutoscroll(ghostElement) {
       height: window.innerHeight
     };
     
-    // Get current scroll info
-    const currentScroll = window.pageYOffset || document.documentElement.scrollTop || 0;
-    const maxScroll = Math.max(0, document.documentElement.scrollHeight - viewport.height);
+    // Autoscroll settings
+    const EDGE_THRESHOLD = 100;  // Pixels from edge to start scrolling
+    const SCROLL_SPEED = 15;     // Pixels per frame
     
-    // Check if there's actually content to scroll to
-    const canScrollUp = currentScroll > 0;
-    const canScrollDown = currentScroll < maxScroll;
-    
-    if (!canScrollUp && !canScrollDown) {
-      return false; // No scrolling possible
-    }
-    
-    // More aggressive autoscroll settings
-    const EDGE_THRESHOLD = 120;  // Larger zone for easier triggering
-    const MAX_SCROLL_SPEED = 25; // Faster scrolling
-    const MIN_SCROLL_SPEED = 3;  // Minimum speed to ensure movement
-    
-    let scrollSpeed = 0;
+    let scrollAmount = 0;
     let shouldScroll = false;
     
     // Check if ghost is near top edge (scroll up)
     const topDistance = ghostRect.top;
-    if (topDistance < EDGE_THRESHOLD && canScrollUp) {
-      const proximity = Math.max(0, (EDGE_THRESHOLD - topDistance) / EDGE_THRESHOLD);
-      scrollSpeed = -Math.max(MIN_SCROLL_SPEED, MAX_SCROLL_SPEED * Math.pow(proximity, 0.6));
+    if (topDistance < EDGE_THRESHOLD) {
+      const intensity = (EDGE_THRESHOLD - topDistance) / EDGE_THRESHOLD;
+      scrollAmount = -SCROLL_SPEED * intensity;
       shouldScroll = true;
-      console.log(`🔼 Top autoscroll: ghost at ${Math.round(topDistance)}px, speed ${Math.round(scrollSpeed)}`);
+      console.log(`🔼 Autoscroll up: ${Math.round(scrollAmount)}px`);
     }
     
     // Check if ghost is near bottom edge (scroll down)
     const bottomDistance = viewport.bottom - ghostRect.bottom;
-    if (bottomDistance < EDGE_THRESHOLD && canScrollDown) {
-      const proximity = Math.max(0, (EDGE_THRESHOLD - bottomDistance) / EDGE_THRESHOLD);
-      scrollSpeed = Math.max(MIN_SCROLL_SPEED, MAX_SCROLL_SPEED * Math.pow(proximity, 0.6));
+    if (bottomDistance < EDGE_THRESHOLD) {
+      const intensity = (EDGE_THRESHOLD - bottomDistance) / EDGE_THRESHOLD;
+      scrollAmount = SCROLL_SPEED * intensity;
       shouldScroll = true;
-      console.log(`🔽 Bottom autoscroll: ghost at ${Math.round(bottomDistance)}px from bottom, speed ${Math.round(scrollSpeed)}`);
+      console.log(`🔽 Autoscroll down: ${Math.round(scrollAmount)}px`);
     }
     
-    // Perform the scroll if needed
-    if (shouldScroll && Math.abs(scrollSpeed) >= MIN_SCROLL_SPEED) {
-      // Temporarily allow scrolling by bypassing the lock
-      const wasLocked = gestureManager.iosScrollLocked;
-      
-      if (wasLocked) {
-        // Temporarily unlock scroll for this operation
-        gestureManager.unlockIOSScroll();
-      }
-      
-      // Perform the actual scroll
-      window.scrollBy(0, Math.round(scrollSpeed));
-      
-      if (wasLocked) {
-        // Re-lock scroll after scrolling
-        setTimeout(() => {
-          gestureManager.lockIOSScroll();
-        }, 10);
-      }
-      
-      return true; // Indicate that scrolling occurred
+    // Use browser's native scroll - simple and reliable
+    if (shouldScroll && Math.abs(scrollAmount) > 1) {
+      window.scrollBy(0, Math.round(scrollAmount));
+      return true;
     }
     
     return false;
@@ -104,7 +74,6 @@ let start = null, hold = false, armedAt = null, timer = null, started = false;
 let anchorY = 0, railLeft = 0, sourceMainId = null, gw = 0, gh = 0;
 let targetY = 0, smoothY = 0, ticking = false, prevTargetY = 0, prevStepY = 0;
 let slotOriginCenterY = 0, lastFrameT = 0;
-let autoscrollActive = false; // Track autoscroll state
 
 // ----- Card drag state -----
 let cdrag = null, cghost = null, cph = null;
@@ -112,7 +81,6 @@ let cstart = null, chold = false, cstarted = false, carmedAt = null, ctimer = nu
 let csmoothY = 0, ctargetY = 0, cprevTargetY = 0, cslotOriginCenterY = 0, canchorY = 0;
 let cgw = 0, cgh = 0, crailLeft = 0, cardTicking = false, clastSwapY = null;
 let cintent = 0, cintentStartY = 0;
-let cardAutoscrollActive = false; // Track card autoscroll state
 const CARD_STICKY = 16, CARD_SWAP_PX = 56, CARD_EDGE_FRAC = 0.25;
 
 // UNIFIED event handler
@@ -166,8 +134,7 @@ function startSubtaskDragSequence(e, row) {
     armedAt = pt(e);
     row.classList.add('armed');
     
-    // Lock scroll using gesture manager
-    gestureManager.lockIOSScroll();
+    // DON'T lock scroll for drag - let autoscroll work naturally
     
     if (navigator.vibrate) navigator.vibrate(5);
   }, HOLD_MS);
@@ -194,7 +161,7 @@ function startCardDragSequence(e, cardRow, card) {
     carmedAt = pt(e);
     cdrag.classList.add('armed');
     
-    gestureManager.lockIOSScroll();
+    // DON'T lock scroll for drag - let autoscroll work naturally
     
     if (navigator.vibrate) navigator.vibrate(5);
   }, HOLD_MS);
@@ -275,7 +242,7 @@ function startDrag(p) {
   started = true; 
   drag.classList.remove('armed'); 
   
-  // Request drag gesture from gesture manager
+  // Request drag gesture - but DON'T lock scroll
   if (!gestureManager.requestGesture('drag', drag)) {
     cleanupNoDrag();
     return;
@@ -319,10 +286,7 @@ function startDrag(p) {
   lastFrameT = performance.now();
   if (!ticking) { ticking = true; requestAnimationFrame(step); }
   
-  // Log scroll capabilities for debugging
-  const currentScroll = window.pageYOffset || document.documentElement.scrollTop || 0;
-  const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  console.log(`🎯 Drag started - Current scroll: ${currentScroll}, Max scroll: ${maxScroll}, Can scroll: ${maxScroll > 0}`);
+  console.log(`🎯 Drag started - scroll remains enabled for autoscroll`);
 }
 
 function insertIntoListByGate(targetList, ghostCenterY, appRect){
@@ -367,16 +331,8 @@ function step(now) {
   const renderY = Math.abs(targetY - smoothY) < SNAP_EPS ? targetY : smoothY;
   ghost.style.transform = `translate3d(0,${renderY}px,0)`;
 
-  // ENHANCED: Aggressive autoscroll every frame
-  const didScroll = performAutoscroll(ghost);
-  if (didScroll !== autoscrollActive) {
-    autoscrollActive = didScroll;
-    if (didScroll) {
-      console.log('🔄 Autoscroll activated');
-    } else {
-      console.log('⏸️ Autoscroll deactivated');
-    }
-  }
+  // Simple autoscroll using native browser scroll
+  performAutoscroll(ghost);
 
   const appRect = app.getBoundingClientRect();
   const ghostCenterY = (renderY) + gh / 2;
@@ -483,15 +439,13 @@ async function onPointerUp() {
 function cleanupNoDrag() {
   try { if (drag) drag.classList.remove('armed'); } catch {}
   drag = null; hold = false; started = false; start = null; armedAt = null;
-  autoscrollActive = false;
   window.removeEventListener('pointermove', onPointerMove);
-  gestureManager.unlockIOSScroll();
+  // No scroll unlocking needed - it was never locked
 }
 
 function cleanupDrag() {
   if (dragLayer) dragLayer.innerHTML = '';
   drag = null; ghost = null; ph = null; hold = false; started = false; start = null; armedAt = null;
-  autoscrollActive = false;
   window.removeEventListener('pointermove', onPointerMove);
   gestureManager.releaseGesture('drag');
 }
@@ -499,15 +453,13 @@ function cleanupDrag() {
 function cleanupCardNoDrag() {
   try { if (cdrag) cdrag.classList.remove('armed'); } catch {}
   cdrag = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
-  cardAutoscrollActive = false;
   window.removeEventListener('pointermove', onCardPointerMove);
-  gestureManager.unlockIOSScroll();
+  // No scroll unlocking needed - it was never locked
 }
 
 function cleanupCardDrag() {
   if (dragLayer) dragLayer.innerHTML = '';
   cdrag = null; cghost = null; cph = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
-  cardAutoscrollActive = false;
   window.removeEventListener('pointermove', onCardPointerMove);
   gestureManager.releaseGesture('drag');
 }
@@ -516,6 +468,7 @@ function startCardDrag(p) {
   cstarted = true; 
   cdrag.classList.remove('armed'); 
   
+  // Request drag gesture - but DON'T lock scroll
   if (!gestureManager.requestGesture('drag', cdrag)) {
     cleanupCardNoDrag();
     return;
@@ -555,10 +508,7 @@ function startCardDrag(p) {
 
   if (!cardTicking) { cardTicking = true; requestAnimationFrame(cardStep); }
   
-  // Log card scroll capabilities
-  const currentScroll = window.pageYOffset || document.documentElement.scrollTop || 0;
-  const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  console.log(`🃏 Card drag started - Current scroll: ${currentScroll}, Max scroll: ${maxScroll}`);
+  console.log(`🃏 Card drag started - scroll remains enabled for autoscroll`);
 }
 
 function cardStep() {
@@ -573,16 +523,8 @@ function cardStep() {
   const renderY = Math.abs(ctargetY - csmoothY) < SNAP_EPS ? ctargetY : csmoothY;
   cghost.style.transform = `translate3d(0,${renderY}px,0)`;
 
-  // ENHANCED: Aggressive autoscroll for card dragging too
-  const didScroll = performAutoscroll(cghost);
-  if (didScroll !== cardAutoscrollActive) {
-    cardAutoscrollActive = didScroll;
-    if (didScroll) {
-      console.log('🃏 Card autoscroll activated');
-    } else {
-      console.log('🃏 Card autoscroll deactivated');
-    }
-  }
+  // Simple autoscroll for card dragging
+  performAutoscroll(cghost);
 
   const appRect = app.getBoundingClientRect();
   const ghostCenterY = renderY + cgh / 2;
@@ -673,6 +615,11 @@ function patchCSSOnce() {
 
     .sub-handle, .card-handle { 
       touch-action: none; 
+    }
+
+    /* Only lock scroll when specifically needed for swipes */
+    .gesture-scroll-locked {
+      /* Let browser handle this naturally */
     }
   `;
   document.head.appendChild(style);

@@ -1,4 +1,4 @@
-/* styles-ios.css - Essential iOS optimizations */
+/* styles-ios.css - Simplified: work WITH the browser, not against it */
 
 /* Root-level iOS fixes */
 html {
@@ -11,36 +11,38 @@ html {
 }
 
 body {
-  -webkit-overflow-scrolling: auto;
+  /* DON'T disable overflow scrolling - let it work naturally */
   touch-action: manipulation;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Enhanced touch-action strategy */
+/* Smart touch-action strategy */
 .task-card,
 .main-task,
 .subtask,
 .swipe-wrap {
-  touch-action: pan-x pan-y;
+  /* Allow normal scrolling by default */
+  touch-action: manipulation;
   will-change: transform;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 
-/* Gesture-specific touch actions */
-.swipe-wrap.swiping,
-.card-swipe-wrap.swiping {
-  touch-action: pan-x;
+/* ONLY disable touch actions for active swipes */
+.swipe-wrap.swiping {
+  touch-action: pan-x; /* Only allow horizontal movement during swipe */
 }
 
+/* DON'T disable touch actions for dragging - let scroll work */
 .task-card.armed,
 .subtask.armed {
-  touch-action: none;
+  /* Keep touch-action: manipulation to allow scrolling during drag */
+  touch-action: manipulation;
 }
 
-/* Handle areas - must disable touch actions */
+/* Handle areas - can still disable these for precise control */
 .sub-handle,
 .card-handle {
   touch-action: none !important;
@@ -71,12 +73,9 @@ textarea {
   user-select: none;
 }
 
-/* Enhanced scroll locking */
-.lock-scroll {
-  overflow: hidden !important;
-  position: fixed !important;
-  width: 100% !important;
-  overscroll-behavior: none !important;
+/* Minimal scroll locking - only when absolutely necessary */
+.gesture-scroll-locked {
+  /* Let browser handle this - we only prevent specific touch events in JS */
 }
 
 /* Better drag ghost on iOS */
@@ -122,12 +121,6 @@ textarea:focus {
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
   will-change: transform, opacity;
-}
-
-/* iOS-specific momentum scroll fix */
-.app {
-  -webkit-overflow-scrolling: auto;
-  overscroll-behavior: none;
 }
 
 /* Action button touch improvements */
