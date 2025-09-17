@@ -1,4 +1,4 @@
-// core.js – ES Module updated with TaskOperations and gestureManager
+// core.js – ES Module updated with TaskOperations
 
 import { bindCrossSortContainer } from './drag.js';
 import { enableSwipe } from './swipe.js';
@@ -9,7 +9,6 @@ import { setApp } from './rendering.js';
 import { renderAll } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
-import { gestureManager } from './gestureManager.js';
 
 // ===== Helpers =====
 export const $  = (s, root=document) => root.querySelector(s);
@@ -31,6 +30,8 @@ export function guard(fn){ return function guarded(){ try { return fn.apply(this
 // ---- Module state ----
 let app = null;
 let dragLayer = null;
+// shared gesture state (used by drag.js & swipe.js)
+export const gesture = { drag: false, swipe: false };
 
 // ===== Behavior wiring =====
 let crossBound = false;
@@ -141,6 +142,62 @@ export function setDomRefs(){
   setApp(app);
 }
 
+// ===== Robust scroll locking for iOS compatibility =====
+let scrollLockState = { locked: false, originalScrollY: 0, touchPreventHandler: null };
+
+export function lockScrollRobust() {
+  if (scrollLockState.locked) return;
+  
+  // Capture current scroll position
+  const scrollingElement = document.scrollingElement || document.documentElement;
+  scrollLockState.originalScrollY = scrollingElement.scrollTop || window.pageYOffset || 0;
+  scrollLockState.locked = true;
+  
+  // Apply CSS lock with position fixed and top offset to maintain visual position
+  document.body.classList.add('lock-scroll');
+  document.body.style.top = `-${scrollLockState.originalScrollY}px`;
+  
+  // Aggressive touch event prevention for iOS
+  scrollLockState.touchPreventHandler = (e) => {
+    // Only prevent if we're in a locked state
+    if (scrollLockState.locked) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+  
+  // Add comprehensive touch prevention
+  document.addEventListener('touchstart', scrollLockState.touchPreventHandler, { passive: false, capture: true });
+  document.addEventListener('touchmove', scrollLockState.touchPreventHandler, { passive: false, capture: true });
+  document.addEventListener('touchend', scrollLockState.touchPreventHandler, { passive: false, capture: true });
+  document.addEventListener('wheel', scrollLockState.touchPreventHandler, { passive: false, capture: true });
+}
+
+export function unlockScrollRobust() {
+  if (!scrollLockState.locked) return;
+  
+  // Remove CSS lock
+  document.body.classList.remove('lock-scroll');
+  document.body.style.top = '';
+  
+  // Remove touch event prevention
+  if (scrollLockState.touchPreventHandler) {
+    document.removeEventListener('touchstart', scrollLockState.touchPreventHandler, { capture: true });
+    document.removeEventListener('touchmove', scrollLockState.touchPreventHandler, { capture: true });
+    document.removeEventListener('touchend', scrollLockState.touchPreventHandler, { capture: true });
+    document.removeEventListener('wheel', scrollLockState.touchPreventHandler, { capture: true });
+    scrollLockState.touchPreventHandler = null;
+  }
+  
+  // Restore original scroll position
+  const scrollingElement = document.scrollingElement || document.documentElement;
+  scrollingElement.scrollTop = scrollLockState.originalScrollY;
+  window.scrollTo(0, scrollLockState.originalScrollY);
+  
+  scrollLockState.locked = false;
+  scrollLockState.originalScrollY = 0;
+}
+
 // Global cleanup function
 export function cleanup() {
   // Remove any global event listeners
@@ -153,8 +210,9 @@ export function cleanup() {
     clearTimeout(window._resizeTimer);
   }
   
-  // Clean up gesture manager
-  gestureManager.cleanup();
+  // Reset gesture state
+  gesture.drag = false;
+  gesture.swipe = false;
 }
 
 export { renderAll } from './rendering.js';

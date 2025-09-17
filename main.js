@@ -1,6 +1,5 @@
 import { setDomRefs, bootBehaviors, cleanup } from './core.js';
 import { renderAll } from './rendering.js';
-import { gestureManager } from './gestureManager.js';
 import './drag.js';
 import './swipe.js';
 import './menu.js';
@@ -19,11 +18,6 @@ window.addEventListener('unhandledrejection', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
   try {
-    // Disable iOS specific behaviors
-    document.addEventListener('gesturestart', e => e.preventDefault());
-    document.addEventListener('gesturechange', e => e.preventDefault());
-    document.addEventListener('gestureend', e => e.preventDefault());
-    
     setDomRefs();
     renderAll();
     bootBehaviors();
@@ -37,8 +31,5 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Enhanced cleanup on page unload
-window.addEventListener('beforeunload', () => {
-  gestureManager.cleanup();
-  cleanup();
-});
+// Cleanup on page unload
+window.addEventListener('beforeunload', cleanup);
