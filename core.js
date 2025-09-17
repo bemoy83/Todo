@@ -145,6 +145,39 @@ export function setDomRefs(){
 // ===== Robust scroll locking for iOS compatibility =====
 let scrollLockState = { locked: false, originalScrollY: 0, touchPreventHandler: null };
 
+// Enhanced scroll lock that allows edge-based auto-scroll for drag operations
+export function lockScrollWithEdgeScroll() {
+  if (scrollLockState.locked) return;
+  
+  // Store original scroll position
+  const scrollingElement = document.scrollingElement || document.documentElement;
+  scrollLockState.originalScrollY = scrollingElement.scrollTop || window.scrollY || 0;
+  
+  // Apply CSS lock
+  document.body.classList.add('lock-scroll');
+  document.body.style.top = `-${scrollLockState.originalScrollY}px`;
+  
+  // Create a more refined touch handler that allows edge auto-scroll
+  scrollLockState.touchPreventHandler = (e) => {
+    // During drag operations, allow edge scrolling
+    if (window.dragEdgeScroll && window.dragEdgeScroll.shouldAllowScroll(e)) {
+      return; // Don't prevent - allow edge auto-scroll
+    }
+    
+    // Otherwise prevent all scrolling
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  
+  // Add event listeners
+  document.addEventListener('touchstart', scrollLockState.touchPreventHandler, { capture: true, passive: false });
+  document.addEventListener('touchmove', scrollLockState.touchPreventHandler, { capture: true, passive: false });
+  document.addEventListener('touchend', scrollLockState.touchPreventHandler, { capture: true, passive: false });
+  document.addEventListener('wheel', scrollLockState.touchPreventHandler, { capture: true, passive: false });
+  
+  scrollLockState.locked = true;
+}
+
 export function lockScrollRobust() {
   if (scrollLockState.locked) return;
   

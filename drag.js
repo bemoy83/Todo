@@ -8,6 +8,7 @@ import {
   gesture,
   lockScrollRobust,
   unlockScrollRobust,
+  lockScrollWithEdgeScroll,
 } from "./core.js";
 import { model } from "./state.js";
 import { TaskOperations } from "./taskOperations.js";
@@ -30,6 +31,44 @@ export function bindCrossSortContainer() {
   if (!app || !dragLayer) return;
 
   patchCSSOnce();
+
+  // Edge auto-scroll system for dragging near screen boundaries
+  window.dragEdgeScroll = {
+    EDGE_SIZE: 60, // Distance from edge to trigger auto-scroll
+    SCROLL_SPEED: 15, // Pixels per frame to scroll
+    
+    shouldAllowScroll(e) {
+      // Only allow during active drag operations
+      if (!gesture.drag) return false;
+      
+      const y = e.touches?.[0]?.clientY || e.clientY;
+      const screenHeight = window.innerHeight;
+      
+      // Check if near top or bottom edge
+      return y < this.EDGE_SIZE || y > (screenHeight - this.EDGE_SIZE);
+    },
+    
+    handleAutoScroll(clientY) {
+      if (!gesture.drag) return;
+      
+      const screenHeight = window.innerHeight;
+      const scrollingElement = document.scrollingElement || document.documentElement;
+      
+      // Scroll up when near top edge
+      if (clientY < this.EDGE_SIZE) {
+        const intensity = (this.EDGE_SIZE - clientY) / this.EDGE_SIZE;
+        const scrollAmount = this.SCROLL_SPEED * intensity;
+        scrollingElement.scrollTop = Math.max(0, scrollingElement.scrollTop - scrollAmount);
+      }
+      // Scroll down when near bottom edge  
+      else if (clientY > (screenHeight - this.EDGE_SIZE)) {
+        const intensity = (clientY - (screenHeight - this.EDGE_SIZE)) / this.EDGE_SIZE;
+        const scrollAmount = this.SCROLL_SPEED * intensity;
+        const maxScroll = scrollingElement.scrollHeight - scrollingElement.clientHeight;
+        scrollingElement.scrollTop = Math.min(maxScroll, scrollingElement.scrollTop + scrollAmount);
+      }
+    }
+  };
 
   // Helpers
   const getRows = (list) =>
@@ -154,8 +193,8 @@ export function bindCrossSortContainer() {
       armedAt = pt(e);
       row.classList.add("armed");
 
-      // 🔥 LOCK SCROLL IMMEDIATELY when hold activates (not when drag starts)
-      lockScrollRobust();
+      // 🔥 LOCK SCROLL when visual feedback starts (with edge auto-scroll)
+      lockScrollWithEdgeScroll();
 
       if (navigator.vibrate) navigator.vibrate(5);
     }, HOLD_MS);
@@ -183,8 +222,8 @@ export function bindCrossSortContainer() {
       carmedAt = pt(e);
       cdrag.classList.add("armed");
 
-      // 🔥 LOCK SCROLL IMMEDIATELY when hold activates
-      lockScrollRobust();
+      // 🔥 LOCK SCROLL when visual feedback starts (with edge auto-scroll) 
+      lockScrollWithEdgeScroll();
 
       if (navigator.vibrate) navigator.vibrate(5);
     }, HOLD_MS);
@@ -233,6 +272,9 @@ export function bindCrossSortContainer() {
     const pointerCY = p.y - appRect.top;
     prevTargetY = targetY;
     targetY = pointerCY - anchorY;
+    
+    // Handle edge auto-scroll during subtask drag
+    window.dragEdgeScroll.handleAutoScroll(p.y);
   }
 
   function onCardPointerMove(e) {
@@ -269,6 +311,9 @@ export function bindCrossSortContainer() {
     const pointerCY = p.y - appRect.top;
     cprevTargetY = ctargetY;
     ctargetY = pointerCY - canchorY;
+    
+    // Handle edge auto-scroll during card drag
+    window.dragEdgeScroll.handleAutoScroll(p.y);
   }
 
   function startDrag(p) {
@@ -559,6 +604,8 @@ export function bindCrossSortContainer() {
   function cleanupDrag() {
     if (dragLayer) dragLayer.innerHTML = "";
     gesture.drag = false;
+    // 🔄 RESTORE SAFARI SCROLLING
+    if (drag) drag.style.touchAction = 'pan-y';
     drag = null;
     ghost = null;
     ph = null;
