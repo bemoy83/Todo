@@ -1,5 +1,5 @@
 // swipe.js - Simplified with CSS extracted
-import { pt, clamp, FLAGS, gesture, lockScrollRobust, unlockScrollRobust } from './core.js';
+import { pt, clamp, FLAGS, gesture } from './core.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations } from './taskOperations.js';
 import { SWIPE, FEEDBACK, TIMING } from './constants.js';
@@ -86,7 +86,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   let tracking = false, captured = false;
   let holdTimer = null, isHolding = false;
   let scrollYAtStart = 0;
-  // unlockScroll variable removed - now using robust shared utility from core.js
+  let unlockScroll = null;
   let velocityTracker = [];
 
   // Helper functions using constants
@@ -119,32 +119,35 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     return velocity >= SWIPE.FLING_VX && distance >= SWIPE.FLING_MIN;
   }
 
-  // Old lockScroll function removed - now using robust shared utility from core.js
+  function lockScroll() {
+    if (unlockScroll) return;
+    document.body.classList.add('lock-scroll');
+    const preventScroll = (e) => e.preventDefault();
+    window.addEventListener('touchmove', preventScroll, { passive: false });
+    window.addEventListener('wheel', preventScroll, { passive: false });
+    unlockScroll = () => {
+      window.removeEventListener('touchmove', preventScroll);
+      window.removeEventListener('wheel', preventScroll);
+      document.body.classList.remove('lock-scroll');
+      unlockScroll = null;
+    };
+  }
 
   function cleanup() {
-    gesture.swipe = false;  // ← Make sure this is always reset
+    gesture.swipe = false;
     tracking = false;
     captured = false;
     clearHoldTimer();
     isHolding = false;
-    unlockScrollRobust();
-    
-    // Clear velocity tracker
-    velocityTracker = [];
-    
-    // Remove any remaining event listeners
-    window.removeEventListener('pointermove', onMove);
-    window.removeEventListener('pointerup', onUp);
+    unlockScroll?.();
   }
 
-function reset() {
+  function reset() {
     openX = 0;
     setTransform(0);
     row.style.opacity = 1;
-    row.style.transition = ''; // ← Clear any lingering transitions
     updateVisuals(0);
     wrap.classList.remove('swiping', 'held');
-    wrap.style.removeProperty('--hold-feedback'); // ← Clear hold feedback
     cleanup();
   }
 
@@ -198,14 +201,8 @@ function reset() {
         e.target.closest('.sub-handle') || 
         e.target.closest('.card-handle') ||
         e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
-    
-    // Edge exclusion zones - prevent gestures near screen edges (iOS back/forward navigation)
-    const EDGE_EXCLUSION = 24; // 24px exclusion zone from screen edges
+
     const p = pt(e);
-    const screenWidth = window.innerWidth;
-    if (p.x < EDGE_EXCLUSION || p.x > (screenWidth - EDGE_EXCLUSION)) {
-      return; // Don't start gesture near screen edges
-    }
     startX = p.x;
     startY = p.y;
     currentX = p.x;
@@ -213,7 +210,7 @@ function reset() {
     tracking = true;
     captured = false;
     isHolding = false;
-    // Don't claim gesture immediately - let drag compete first
+    gesture.swipe = true;
     
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
     wrap.classList.add('swiping');
@@ -244,8 +241,7 @@ function reset() {
       
       if (Math.abs(dx) >= SWIPE.MIN_INTENT_DISTANCE) {
         captured = true;
-        gesture.swipe = true; // Now claim the gesture - we're sure it's a swipe
-        lockScrollRobust();
+        lockScroll();
         e.preventDefault();
         startHoldTimer();
       } else {
@@ -279,23 +275,25 @@ function reset() {
       } else {
         executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
       }
-      return; // ← Important: return early, don't continue
+      return;
     }
     
     if (isHolding) {
+      // Use appropriate reveal distance based on swipe direction
       const targetX = dx > 0 ? getLeftRevealDistance() : -getRightRevealDistance();
       animateTo(targetX);
       openX = targetX;
       updateVisuals(targetX);
       wrap.style.removeProperty('--hold-feedback');
-      cleanup(); // ← Clean up immediately for hold actions
+      cleanup();
       return;
     }
     
     const distance = Math.abs(dx);
+    // Use different thresholds for left vs right based on their reveal distances
     const threshold = dx > 0 ? 
-      (getLeftRevealDistance() * 0.6) :
-      (getRightRevealDistance() * 0.6);
+      (getLeftRevealDistance() * 0.6) :   // 60% of left reveal distance
+      (getRightRevealDistance() * 0.6);   // 60% of right reveal distance
     
     if (distance >= threshold) {
       if (dx > 0) {
@@ -303,27 +301,21 @@ function reset() {
       } else {
         executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
       }
-      return; // ← Important: return early
+      return;
     }
     
-    // Normal snap back
     animateTo(0);
     openX = 0;
     updateVisuals(0);
-    cleanup(); // ← Clean up for normal snap back
+    cleanup();
   }
 
   function executeAction(actionName, zone) {
     haptic();
     pulseZone(zone);
-    
-    // Perform the action first
     performAction(actionName);
-    
-    // Then handle the animation and cleanup
     afterExecute(actionName.includes('complete') ? 'right' : 'left');
-    
-    // Don't call cleanup() here - let afterExecute handle it
+    cleanup();
   }
 
   function animateTo(targetX) {
@@ -335,26 +327,15 @@ function reset() {
 
   function afterExecute(direction) {
     const duration = prefersReducedMotion() ? TIMING.REDUCED_MOTION_DURATION : SWIPE.EXEC_MS;
-    // Fix: Use correct reveal distance function
-    const distance = direction === 'right' ? getRightRevealDistance() * 1.2 : -getLeftRevealDistance() * 1.2;
+    const distance = direction === 'right' ? getRevealDistance() * 1.2 : -getRevealDistance() * 1.2;
     
     row.style.transition = `transform ${duration}ms ease, opacity ${duration}ms ease`;
     setTransform(distance);
     row.style.opacity = 0;
     
-    // Use requestAnimationFrame for better timing
     setTimeout(() => {
-      // Force cleanup before reset to avoid race conditions
-      cleanup();
-      
-      // Reset everything
-      openX = 0;
-      setTransform(0);
-      row.style.opacity = 1;
       row.style.transition = '';
-      updateVisuals(0);
-      wrap.classList.remove('swiping', 'held');
-      wrap.style.removeProperty('--hold-feedback');
+      reset();
     }, duration + 10);
   }
 
@@ -373,11 +354,9 @@ function reset() {
             await TaskOperations.subtask.toggle(mainId, subId);
             break;
           case 'edit':
-            // For edit actions, clean up immediately and don't animate
-            cleanup();
-            reset();
+            closeDrawer();
             startEditMode(row);
-            return; // Don't continue with animation
+            break;
         }
       } else if (type === 'task') {
         const taskId = wrap.closest('.task-card').dataset.id;
@@ -387,11 +366,9 @@ function reset() {
             await TaskOperations.task.toggleCompletion(taskId);
             break;
           case 'edit-title':
-            // For edit actions, clean up immediately and don't animate
-            cleanup();
-            reset();
+            closeDrawer();
             startEditTaskTitle(row);
-            return; // Don't continue with animation
+            break;
           case 'delete-task':
             await TaskOperations.task.delete(taskId);
             break;
@@ -399,9 +376,6 @@ function reset() {
       }
     } catch (error) {
       console.error('Swipe action failed:', error);
-      // On error, make sure we clean up properly
-      cleanup();
-      reset();
     }
   }
   

@@ -354,9 +354,7 @@ button {
   touch-action: pan-y;
   position: relative;
   background: var(--card);
-  transition: transform var(--timing-fast) var(--easing), 
-              box-shadow var(--timing-fast) var(--easing), 
-              opacity var(--timing-fast) var(--easing);
+  transition: transform var(--timing-fast) ease-out, box-shadow var(--timing-fast) ease-out;
   border-radius: var(--radius) var(--radius) 0 0;
   z-index: 1;
 }
@@ -541,6 +539,11 @@ button {
   visibility: hidden;
 }
 
+body.lock-scroll { /* was body.lock-scroll */
+  overflow: hidden; 
+  touch-action: none; 
+}
+
 /* Empty state */
 .empty {
   display: flex; 
@@ -638,68 +641,28 @@ button {
   .subtask, 
   .subtask.armed,
   .card-row { 
-        transition: none !important; 
-        transform: none !important; }
+	transition: none !important; 
+	transform: none !important; }
   .swipe-actions .action,
   .card-swipe-actions .action { 
-        transition: opacity 60ms linear; }
+	transition: opacity 60ms linear; }
 }
 
 /* Add this to your styles.css - Swipe Gesture Styles */
 
-/* Swipe containers - Enhanced with proper touch policies */
+/* Swipe containers */
 .swipe-wrap, .card-swipe-wrap  {
   position: relative;
   border-radius: var(--radius-sm);
-  /* Allow pan-y for vertical scrolling, prevent horizontal gestures */
-  touch-action: pan-y;
-  /* Prevent iOS text selection and callouts during gestures */
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  user-select: none;
 }
 
 .card-swipe-wrap {
   overflow: hidden;
 }
 
-/* Enhanced touch policies for different gesture states */
-
-/* Base draggable content elements */
-.subtask, .card-row {
-  /* Allow vertical scrolling, but prepare for horizontal gestures */
-  touch-action: pan-y;
-  /* Prevent iOS text selection and callouts */
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  user-select: none;
-}
-
-/* When armed for drag/hold - completely prevent native gestures */
-.subtask.armed, .card-row.armed,
-.task-card.armed {
-  touch-action: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  user-select: none;
-}
-
-/* When actively swiping - prevent all native touch behaviors */
-.swipe-wrap.swiping .subtask, 
-.card-swipe-wrap.swiping .card-row { 
-  touch-action: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  user-select: none;
-}
-
-/* When dragging - prevent all native behaviors */
-.drag-ghost,
-.dragging {
-  touch-action: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  user-select: none;
+/* Swipe states */
+.swipe-wrap.swiping .subtask, .card-swipe-wrap.swiping .card-row { 
+  touch-action: none; 
 }
 
 .swipe-wrap.swiping .subtask,
@@ -707,13 +670,9 @@ button {
   transition: none;
 }
 
-/* Enhanced scroll locking for iOS compatibility */
-.lock-scroll { 
-  position: fixed;
-  width: 100%;
+.lock-scroll { /*was body.lock-scroll*/
   overflow: hidden; 
-  overscroll-behavior: none;
-  /* Top offset is set dynamically via JS to preserve scroll position */ 
+  overscroll-behavior: none; 
 }
 
 /* Base swipe actions (shared styles) */
@@ -761,7 +720,7 @@ button {
 .swipe-actions .zone.left,
 .card-swipe-actions .zone.left { 
   justify-content: flex-start;
-  /* background: rgba(22, 163, 74, calc(var(--reveal) * 1.0)); */
+  //background: rgba(22, 163, 74, calc(var(--reveal) * 1.0));
   background: var(--neuro-bg);
   box-shadow: var(--neuro-pressed);
 }
@@ -769,7 +728,7 @@ button {
 .swipe-actions .zone.right,
 .card-swipe-actions .zone.right { 
   justify-content: flex-end;
-  /* background: rgba(239, 68, 68, calc(var(--reveal) * 1.0)); */
+  //background: rgba(239, 68, 68, calc(var(--reveal) * 1.0));
   background: var(--neuro-bg);
   box-shadow: var(--neuro-pressed);
 }
@@ -834,7 +793,7 @@ button {
 /* Shared hold feedback */
 .swipe-wrap.held .swipe-actions .action,
 .card-swipe-wrap.held .card-swipe-actions .action {
-  /* box-shadow: 0 0 0 1px white; rgba(59,130,246,.4), 0 2px 8px rgba(0,0,0,.12); */
+  //box-shadow: 0 0 0 1px white; // rgba(59,130,246,.4), 0 2px 8px rgba(0,0,0,.12);
   transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse) * 1.05));
 }
 

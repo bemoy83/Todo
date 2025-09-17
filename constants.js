@@ -3,7 +3,7 @@
 
 // ---- Drag thresholds & smoothing ----
 export const DRAG = {
-  HOLD_MS: 500,
+  HOLD_MS: 350,
   JITTER_PX: 8,
   GATE: 0.30,
   FORCE: 0.70,
