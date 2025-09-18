@@ -10,69 +10,6 @@ import { renderAll } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
 
-// ADD THIS AFTER IMPORTS in core.js
-
-class EventManager {
-  constructor() {
-    this.controllers = new Set();
-    this.timers = new Set();
-    this.observers = new Set();
-  }
-
-  addListener(element, event, handler, options = {}) {
-    const controller = new AbortController();
-    this.controllers.add(controller);
-    
-    element.addEventListener(event, handler, {
-      ...options,
-      signal: controller.signal
-    });
-    
-    return () => {
-      controller.abort();
-      this.controllers.delete(controller);
-    };
-  }
-
-  addTimer(callback, delay) {
-    const timer = setTimeout(() => {
-      this.timers.delete(timer);
-      callback();
-    }, delay);
-    
-    this.timers.add(timer);
-    return timer;
-  }
-
-  addInterval(callback, delay) {
-    const interval = setInterval(callback, delay);
-    this.timers.add(interval);
-    return interval;
-  }
-
-  addObserver(observer) {
-    this.observers.add(observer);
-    return () => this.observers.delete(observer);
-  }
-
-  cleanup() {
-    // Abort all event listeners
-    this.controllers.forEach(controller => controller.abort());
-    this.controllers.clear();
-    
-    // Clear all timers
-    this.timers.forEach(timer => clearTimeout(timer));
-    this.timers.clear();
-    
-    // Disconnect all observers
-    this.observers.forEach(observer => {
-      if (observer.disconnect) observer.disconnect();
-    });
-    this.observers.clear();
-  }
-}
-
-export const eventManager = new EventManager();
 // ===== Helpers =====
 export const $  = (s, root=document) => root.querySelector(s);
 export const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
@@ -98,12 +35,10 @@ export const gesture = { drag: false, swipe: false };
 
 // ===== Behavior wiring =====
 let crossBound = false;
-
-// REPLACE bindKeyboardShortcuts function in core.js:
 function bindKeyboardShortcuts() {
   if (document._keyboardBound) return;
   
-  eventManager.addListener(document, 'keydown', (e) => {
+  document.addEventListener('keydown', (e) => {
     // Only handle shortcuts when not typing in an input
     if (e.target.matches('input, textarea, [contenteditable]')) return;
     
@@ -115,6 +50,7 @@ function bindKeyboardShortcuts() {
           break;
         case 's':
           e.preventDefault();
+          // Force save
           saveModel();
           break;
       }
@@ -206,19 +142,110 @@ export function setDomRefs(){
   setApp(app);
 }
 
+// ===== Robust scroll locking for iOS compatibility =====
+let scrollLockState = { locked: false, originalScrollY: 0, touchPreventHandler: null };
+
+// Enhanced scroll lock that allows edge-based auto-scroll for drag operations
+export function lockScrollWithEdgeScroll() {
+  if (scrollLockState.locked) return;
+  
+  // Store original scroll position
+  const scrollingElement = document.scrollingElement || document.documentElement;
+  scrollLockState.originalScrollY = scrollingElement.scrollTop || window.scrollY || 0;
+  
+  // Apply CSS lock
+  document.body.classList.add('lock-scroll');
+  document.body.style.top = `-${scrollLockState.originalScrollY}px`;
+  
+  // Create a more refined touch handler that allows edge auto-scroll
+  scrollLockState.touchPreventHandler = (e) => {
+    // During drag operations, allow edge scrolling
+    if (window.dragEdgeScroll && window.dragEdgeScroll.shouldAllowScroll(e)) {
+      return; // Don't prevent - allow edge auto-scroll
+    }
+    
+    // Otherwise prevent all scrolling
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  
+  // Add event listeners
+  document.addEventListener('touchstart', scrollLockState.touchPreventHandler, { capture: true, passive: false });
+  document.addEventListener('touchmove', scrollLockState.touchPreventHandler, { capture: true, passive: false });
+  document.addEventListener('touchend', scrollLockState.touchPreventHandler, { capture: true, passive: false });
+  document.addEventListener('wheel', scrollLockState.touchPreventHandler, { capture: true, passive: false });
+  
+  scrollLockState.locked = true;
+}
+
+export function lockScrollRobust() {
+  if (scrollLockState.locked) return;
+  
+  // Capture current scroll position
+  const scrollingElement = document.scrollingElement || document.documentElement;
+  scrollLockState.originalScrollY = scrollingElement.scrollTop || window.pageYOffset || 0;
+  scrollLockState.locked = true;
+  
+  // Apply CSS lock with position fixed and top offset to maintain visual position
+  document.body.classList.add('lock-scroll');
+  document.body.style.top = `-${scrollLockState.originalScrollY}px`;
+  
+  // Aggressive touch event prevention for iOS
+  scrollLockState.touchPreventHandler = (e) => {
+    // Only prevent if we're in a locked state
+    if (scrollLockState.locked) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+  
+  // Add comprehensive touch prevention
+  document.addEventListener('touchstart', scrollLockState.touchPreventHandler, { passive: false, capture: true });
+  document.addEventListener('touchmove', scrollLockState.touchPreventHandler, { passive: false, capture: true });
+  document.addEventListener('touchend', scrollLockState.touchPreventHandler, { passive: false, capture: true });
+  document.addEventListener('wheel', scrollLockState.touchPreventHandler, { passive: false, capture: true });
+}
+
+export function unlockScrollRobust() {
+  if (!scrollLockState.locked) return;
+  
+  // Remove CSS lock
+  document.body.classList.remove('lock-scroll');
+  document.body.style.top = '';
+  
+  // Remove touch event prevention
+  if (scrollLockState.touchPreventHandler) {
+    document.removeEventListener('touchstart', scrollLockState.touchPreventHandler, { capture: true });
+    document.removeEventListener('touchmove', scrollLockState.touchPreventHandler, { capture: true });
+    document.removeEventListener('touchend', scrollLockState.touchPreventHandler, { capture: true });
+    document.removeEventListener('wheel', scrollLockState.touchPreventHandler, { capture: true });
+    scrollLockState.touchPreventHandler = null;
+  }
+  
+  // Restore original scroll position
+  const scrollingElement = document.scrollingElement || document.documentElement;
+  scrollingElement.scrollTop = scrollLockState.originalScrollY;
+  window.scrollTo(0, scrollLockState.originalScrollY);
+  
+  scrollLockState.locked = false;
+  scrollLockState.originalScrollY = 0;
+}
+
 // Global cleanup function
-// REPLACE the existing cleanup() function in core.js with this:
 export function cleanup() {
-  eventManager.cleanup();
+  // Remove any global event listeners
+  if (window._resizeHandler) {
+    window.removeEventListener('resize', window._resizeHandler);
+  }
+  
+  // Clear any timers
+  if (window._resizeTimer) {
+    clearTimeout(window._resizeTimer);
+  }
   
   // Reset gesture state
   gesture.drag = false;
   gesture.swipe = false;
-  
-  // Clear any remaining RAF callbacks
-  if (window._rafCallbacks) {
-    window._rafCallbacks.clear();
-  }
 }
 
 export { renderAll } from './rendering.js';
