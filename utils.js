@@ -33,3 +33,50 @@ export function safeExecute(fn, fallback = () => {}) {
 	return fallback();
   }
 }
+
+// ADD this function to utils.js:
+
+export function createWeakCache(maxSize = 100) {
+  const cache = new Map();
+  const accessOrder = new Set();
+
+  return {
+	get(key) {
+	  if (cache.has(key)) {
+		// Move to end (most recent)
+		accessOrder.delete(key);
+		accessOrder.add(key);
+		return cache.get(key);
+	  }
+	  return undefined;
+	},
+
+	set(key, value) {
+	  if (cache.has(key)) {
+		// Update existing
+		cache.set(key, value);
+		accessOrder.delete(key);
+		accessOrder.add(key);
+	  } else {
+		// Add new
+		if (cache.size >= maxSize) {
+		  // Remove least recently used
+		  const firstKey = accessOrder.values().next().value;
+		  accessOrder.delete(firstKey);
+		  cache.delete(firstKey);
+		}
+		cache.set(key, value);
+		accessOrder.add(key);
+	  }
+	},
+
+	clear() {
+	  cache.clear();
+	  accessOrder.clear();
+	},
+
+	size() {
+	  return cache.size;
+	}
+  };
+}

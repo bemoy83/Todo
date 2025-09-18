@@ -2,13 +2,31 @@
 import { model, saveModel, uid } from './state.js';
 
 // Single refresh function to avoid repetition
+// REPLACE the refreshUI function in taskOperations.js with this:
 const refreshUI = async () => {
-  const [{ renderAll }, { bootBehaviors }] = await Promise.all([
-    import('./rendering.js'),
-    import('./core.js')
-  ]);
-  renderAll();
-  bootBehaviors();
+  try {
+    const [{ renderAll }, { bootBehaviors }] = await Promise.all([
+      import('./rendering.js'),
+      import('./core.js')
+    ]);
+    
+    // Batch the operations
+    renderAll();
+    
+    // Defer behavior binding to next frame to avoid blocking render
+    requestAnimationFrame(() => {
+      bootBehaviors();
+    });
+  } catch (error) {
+    console.error('Failed to refresh UI:', error);
+    // Fallback: try basic render without behaviors
+    try {
+      const { renderAll } = await import('./rendering.js');
+      renderAll();
+    } catch (fallbackError) {
+      console.error('Fallback render failed:', fallbackError);
+    }
+  }
 };
 
 // Base operation class to reduce repetition

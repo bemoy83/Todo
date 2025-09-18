@@ -10,6 +10,69 @@ import { renderAll } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
 
+// ADD THIS AFTER IMPORTS in core.js
+
+class EventManager {
+  constructor() {
+    this.controllers = new Set();
+    this.timers = new Set();
+    this.observers = new Set();
+  }
+
+  addListener(element, event, handler, options = {}) {
+    const controller = new AbortController();
+    this.controllers.add(controller);
+    
+    element.addEventListener(event, handler, {
+      ...options,
+      signal: controller.signal
+    });
+    
+    return () => {
+      controller.abort();
+      this.controllers.delete(controller);
+    };
+  }
+
+  addTimer(callback, delay) {
+    const timer = setTimeout(() => {
+      this.timers.delete(timer);
+      callback();
+    }, delay);
+    
+    this.timers.add(timer);
+    return timer;
+  }
+
+  addInterval(callback, delay) {
+    const interval = setInterval(callback, delay);
+    this.timers.add(interval);
+    return interval;
+  }
+
+  addObserver(observer) {
+    this.observers.add(observer);
+    return () => this.observers.delete(observer);
+  }
+
+  cleanup() {
+    // Abort all event listeners
+    this.controllers.forEach(controller => controller.abort());
+    this.controllers.clear();
+    
+    // Clear all timers
+    this.timers.forEach(timer => clearTimeout(timer));
+    this.timers.clear();
+    
+    // Disconnect all observers
+    this.observers.forEach(observer => {
+      if (observer.disconnect) observer.disconnect();
+    });
+    this.observers.clear();
+  }
+}
+
+export const eventManager = new EventManager();
 // ===== Helpers =====
 export const $  = (s, root=document) => root.querySelector(s);
 export const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
@@ -35,10 +98,12 @@ export const gesture = { drag: false, swipe: false };
 
 // ===== Behavior wiring =====
 let crossBound = false;
+
+// REPLACE bindKeyboardShortcuts function in core.js:
 function bindKeyboardShortcuts() {
   if (document._keyboardBound) return;
   
-  document.addEventListener('keydown', (e) => {
+  eventManager.addListener(document, 'keydown', (e) => {
     // Only handle shortcuts when not typing in an input
     if (e.target.matches('input, textarea, [contenteditable]')) return;
     
@@ -50,7 +115,6 @@ function bindKeyboardShortcuts() {
           break;
         case 's':
           e.preventDefault();
-          // Force save
           saveModel();
           break;
       }
@@ -143,20 +207,18 @@ export function setDomRefs(){
 }
 
 // Global cleanup function
+// REPLACE the existing cleanup() function in core.js with this:
 export function cleanup() {
-  // Remove any global event listeners
-  if (window._resizeHandler) {
-    window.removeEventListener('resize', window._resizeHandler);
-  }
-  
-  // Clear any timers
-  if (window._resizeTimer) {
-    clearTimeout(window._resizeTimer);
-  }
+  eventManager.cleanup();
   
   // Reset gesture state
   gesture.drag = false;
   gesture.swipe = false;
+  
+  // Clear any remaining RAF callbacks
+  if (window._rafCallbacks) {
+    window._rafCallbacks.clear();
+  }
 }
 
 export { renderAll } from './rendering.js';
