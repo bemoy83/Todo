@@ -46,10 +46,10 @@ window.addEventListener('beforeunload', () => {
 
 // ADD this at the very end of main.js:
 
-// Service Worker Registration
+// REPLACE the service worker registration in main.js with:
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('./sw.js')  // Changed from '/sw.js' to './sw.js'
       .then((registration) => {
         console.log('Service Worker registered successfully:', registration.scope);
       })

@@ -1,21 +1,22 @@
 // sw.js - Basic Service Worker for Todo App
 const CACHE_NAME = 'todo-app-v1';
+// REPLACE the STATIC_ASSETS array in sw.js with this:
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/main.js',
-  '/core.js',
-  '/state.js',
-  '/rendering.js',
-  '/drag.js',
-  '/swipe.js',
-  '/menu.js',
-  '/editing.js',
-  '/taskOperations.js',
-  '/utils.js',
-  '/constants.js',
-  '/performance.js',
-  '/styles.css'
+  './',
+  './index.html',
+  './main.js',
+  './core.js',
+  './state.js',
+  './rendering.js',
+  './drag.js',
+  './swipe.js',
+  './menu.js',
+  './editing.js',
+  './taskOperations.js',
+  './utils.js',
+  './constants.js',
+  './performance.js',
+  './styles.css'
 ];
 
 // Install event - cache static assets
