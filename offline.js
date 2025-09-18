@@ -13,15 +13,16 @@ class OfflineManager {
 	this.updateStatus();
   }
 
+  // REPLACE the createStatusIndicator method in offline.js with this:
   createStatusIndicator() {
-	// Create a subtle status indicator
+	// Create a more visible status indicator
 	this.statusIndicator = document.createElement('div');
 	this.statusIndicator.id = 'connection-status';
 	this.statusIndicator.style.cssText = `
 	  position: fixed;
-	  top: calc(env(safe-area-inset-top) + 8px);
+	  top: 80px;
 	  right: 16px;
-	  z-index: 1090;
+	  z-index: 9999;
 	  padding: 8px 12px;
 	  border-radius: 20px;
 	  font-size: 12px;
@@ -30,6 +31,7 @@ class OfflineManager {
 	  pointer-events: none;
 	  opacity: 0;
 	  transform: translateY(-10px);
+	  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 	`;
 	
 	document.body.appendChild(this.statusIndicator);
@@ -49,11 +51,19 @@ class OfflineManager {
 	});
   }
 
+  // REPLACE the updateStatus method with this more aggressive version:
   updateStatus() {
+	console.log('Connection status:', this.isOnline ? 'ONLINE' : 'OFFLINE'); // Debug log
+	
 	if (!this.isOnline) {
 	  this.showOfflineIndicator();
 	} else {
-	  this.hideIndicator();
+	  // Only hide if we're definitely online and not showing a temporary message
+	  setTimeout(() => {
+		if (this.isOnline) {
+		  this.hideIndicator();
+		}
+	  }, 100);
 	}
   }
 
