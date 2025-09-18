@@ -4,6 +4,7 @@ import './drag.js';
 import './swipe.js';
 import './menu.js';
 import { performanceMonitor, withTiming } from './performance.js'; // ADD THIS
+import { offlineManager } from './offline.js'; // ADD this line
 
 // Global error handler
 window.addEventListener('error', (e) => {

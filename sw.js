@@ -1,6 +1,7 @@
 // sw.js - Basic Service Worker for Todo App
 const CACHE_NAME = 'todo-app-v1';
 // REPLACE the STATIC_ASSETS array in sw.js with this:
+// UPDATE the STATIC_ASSETS array in sw.js to include:
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -16,6 +17,7 @@ const STATIC_ASSETS = [
   './utils.js',
   './constants.js',
   './performance.js',
+  './offline.js',  // ADD this line
   './styles.css'
 ];
 
