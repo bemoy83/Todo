@@ -185,6 +185,7 @@
     font-weight: 900;
   }
 }
+
 /* Basic reset and body styles */
 * {
   box-sizing: border-box;
@@ -296,13 +297,13 @@ button {
 }
 
 .task-card.armed { 
-  transform: translateY(-2px);                    /* Lift slightly */
+  transform: translateY(-4px);                    /* Lift slightly */
   box-shadow: 
     8px 8px 16px var(--neuro-shadow-dark),
     -8px -8px 16px var(--neuro-shadow-light);    /* Deeper shadows when armed */
 }
 
-/* Optional: Animated Hover Effects *
+/*Optional: Animated Hover Effects *
 .task-card:hover {
   transform: translateY(-1px);
   box-shadow: 
@@ -330,7 +331,7 @@ button {
 }
 
 .subtask.armed { 
-  transform: translateY(-1px);                    /* Slight lift */
+  transform: translateY(-2px);                    /* Slight lift */
   box-shadow: 
     4px 4px 8px var(--neuro-shadow-dark),
     -4px -4px 8px var(--neuro-shadow-light);     /* Slightly deeper shadows */
@@ -480,7 +481,7 @@ button {
 .add-btn,
 .menu-btn,
 .add-sub-btn {
-  background: var(--neuro-bg);
+  background: transparent;
   border: none;                                   /* Remove borders */
   border-radius: var(--radius-full);
   box-shadow: var(--neuro-subtle);               /* Raised appearance */
@@ -522,7 +523,7 @@ button {
 
 /* Option 7: Neumorphism style (trendy) */
 .placeholder { 
-  background: var(--neuro-bg);
+  background: transparent;
   box-shadow: var(--neuro-pressed);
   border: none;
   border-radius: var(--radius);
@@ -536,7 +537,7 @@ button {
   width: var(--ghost-w, auto);
   height: var(--ghost-h, auto);
   border-radius: var(--radius-sm);
-  opacity: 0.98;
+  opacity: 0.80;
   box-shadow: var(--shadow-strong);
   visibility: hidden;
 }
@@ -726,9 +727,10 @@ button {
   display: grid; 
   grid-template-columns: 1fr 1fr; 
   pointer-events: none;
-  background: #f8f9fa;
+  background: transparent;
   overflow: hidden;
   z-index: 0;
+  box-shadow: var(--neuro-pressed);
 }
 
 
@@ -754,7 +756,7 @@ button {
   --reveal: 0; 
   --pulse: 1;
   min-height: inherit;
-  transition: background-color var(--timing-normal) ease;
+  /*transition: background-color var(--timing-normal) ease; */
 }
 
 /* Shared zone positioning */
@@ -762,16 +764,12 @@ button {
 .card-swipe-actions .zone.left { 
   justify-content: flex-start;
   /* background: rgba(22, 163, 74, calc(var(--reveal) * 1.0)); */
-  background: var(--neuro-bg);
-  box-shadow: var(--neuro-pressed);
 }
 
 .swipe-actions .zone.right,
 .card-swipe-actions .zone.right { 
   justify-content: flex-end;
   /* background: rgba(239, 68, 68, calc(var(--reveal) * 1.0)); */
-  background: var(--neuro-bg);
-  box-shadow: var(--neuro-pressed);
 }
 
 /* Action Buttons (Swipe Actions) - Neumorphic */
@@ -786,8 +784,9 @@ button {
   display: inline-flex; 
   align-items: center; 
   justify-content: center;
-  background: var(--neuro-bg);                   /* Use neuro background */
-  box-shadow: var(--neuro-subtle);               /* Raised effect */
+  background: var(--bg); 
+  color: var(--fg);                  
+  box-shadow: none;               /* Raised effect */
   border: none;                                   /* Remove border */
   opacity: var(--reveal);
   transform: scale(calc((0.2 + var(--reveal) * 0.8) * var(--pulse)));
@@ -834,8 +833,8 @@ button {
 /* Shared hold feedback */
 .swipe-wrap.held .swipe-actions .action,
 .card-swipe-wrap.held .card-swipe-actions .action {
-  /* box-shadow: 0 0 0 1px white; rgba(59,130,246,.4), 0 2px 8px rgba(0,0,0,.12); */
-  transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse) * 1.05));
+  box-shadow: var(--neuro-raised);
+  transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse) * 1.0));
 }
 
 /*.swipe-wrap[style*="--hold-feedback"],

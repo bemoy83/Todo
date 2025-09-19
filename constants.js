@@ -50,9 +50,7 @@ export const SWIPE = {
   // === NEW: Separate Reveal Distances ===
   LEFT_REVEAL_DISTANCE: 80,   // Distance to reveal left actions (complete)
   RIGHT_REVEAL_DISTANCE: 120, // Distance to reveal right actions (edit + delete)
-  
-  // === Action Button Constants ===
-  
+
 };
 
 // Alternative: More sensitive settings
