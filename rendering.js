@@ -13,6 +13,9 @@ export function setApp(appElement) {
 
 export function renderAll(){
   return safeExecute(() => {
+	// CRITICAL: Clean up before re-rendering
+	cleanupBeforeRender();
+	
 	const layer = app ? app.querySelector("#dragLayer") : null;
 	if(app) app.innerHTML = "";
 	if(!app) return;
@@ -31,6 +34,17 @@ export function renderAll(){
 	console.error('Render failed, showing fallback');
 	if(app) app.innerHTML = '<div class="empty">Something went wrong. Please refresh.</div>';
   });
+}
+
+function cleanupBeforeRender() {
+  // Clean up swipe listeners - these attach to individual elements
+  cleanupSwipeListeners();
+  
+  // Don't clean drag - it's delegated to the app container
+  // and only needs to be set up once
+  
+  // Clean up any other registered listeners
+  cleanupManager.cleanupAll();
 }
 
 function renderCard(m){

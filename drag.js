@@ -30,14 +30,14 @@ let appPointerDownHandler = null;
 let isDragBound = false;
 
 export function bindCrossSortContainer() {
-// Check if already bound
-if (isDragBound) return;
-
 const app = document.getElementById("app");
 const dragLayer = document.getElementById("dragLayer");
 if (!app || !dragLayer) return;
 
-  patchCSSOnce();
+// Only bind if not already bound (check for actual listener, not just flag)
+if (app._dragListenerBound) return;
+
+patchCSSOnce();
 
   // Edge auto-scroll system for dragging near screen boundaries
   window.dragEdgeScroll = {
@@ -131,19 +131,16 @@ if (!app || !dragLayer) return;
     CARD_SWAP_PX = 56,
     CARD_EDGE_FRAC = 0.25;
   
-  // FIXED: Use a single unified event listener instead of two competing ones
+  // When adding the listener:
   if (appPointerDownHandler) {
     app.removeEventListener("pointerdown", appPointerDownHandler);
   }
   
-  // Create new handler (we'll use the existing onUnifiedPointerDown function)
   appPointerDownHandler = onUnifiedPointerDown;
-  
-  // Add new handler
   app.addEventListener("pointerdown", appPointerDownHandler, { passive: false });
   
-  // Mark as bound
-  isDragBound = true;
+  // Mark on the element itself
+  app._dragListenerBound = true;
 
   // UNIFIED event handler that determines what type of drag to start
   function onUnifiedPointerDown(e) {
@@ -895,12 +892,13 @@ if (!app || !dragLayer) return;
   
   // This allows other modules to clean up drag listeners
   window._cleanupDrag = () => {
+    const app = document.getElementById("app");
     if (appPointerDownHandler && app) {
       app.removeEventListener("pointerdown", appPointerDownHandler);
+      app._dragListenerBound = false;
       appPointerDownHandler = null;
     }
     isDragBound = false;
-    // Note: crossBound is managed by core.js, not here
   };
 }
 
