@@ -7,7 +7,12 @@
   viewport-fit=cover, maximum-scale=1, user-scalable=no" />
   
   <link rel="stylesheet" href="styles.css">
-  
+
+  <!-- PWA / iOS additions -->
+  <link rel="manifest" href="/Todo/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/Todo/icons/apple-touch-icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
   <header class="topbar">
@@ -16,36 +21,31 @@
             aria-label="Open menu" 
             aria-haspopup="menu" 
             aria-expanded="false" 
-            aria-controls="appMenu"
-            ></button>
+            aria-controls="appMenu"></button>
     <div class="topbar-title">Tasks</div>
   </header>
-  <nav  id="appMenu" 
-        class="menu" 
-        role="menu" 
-        aria-hidden="true">
+  <nav id="appMenu" 
+       class="menu" 
+       role="menu" 
+       aria-hidden="true">
     <button class="menu-item" 
             data-menu="export" 
-            role="menuitem"
-            >Export backup</button>
+            role="menuitem">Export backup</button>
     <button class="menu-item" 
             data-menu="import" 
-            role="menuitem"
-            >Import backup…</button>
+            role="menuitem">Import backup…</button>
     <button class="menu-item danger" 
             data-menu="clear" 
-            role="menuitem"
-            >Clear all data</button>
+            role="menuitem">Clear all data</button>
   </nav>
-  <input  type="file" 
-          id="importFile" 
-          accept="application/json" 
-          hidden />
-  <main class="app" 
-        id="app">
-    <div  id="dragLayer" 
-          class="drag-layer" 
-          aria-hidden="true"></div>
+  <input type="file" 
+         id="importFile" 
+         accept="application/json" 
+         hidden />
+  <main class="app" id="app">
+    <div id="dragLayer" 
+         class="drag-layer" 
+         aria-hidden="true"></div>
   </main>
 
   <!-- Add main task bar -->
@@ -53,22 +53,48 @@
         class="add-bar" 
         autocomplete="off">
     <div class="add-inner">
-      <input  id="newTaskTitle" 
-              class="add-input" 
-              name="title" 
-              type="text" 
-              inputmode="text" 
-              placeholder="Add a task…" 
-              aria-label="Add a task" 
-              maxlength="180" />
+      <input id="newTaskTitle" 
+             class="add-input" 
+             name="title" 
+             type="text" 
+             inputmode="text" 
+             placeholder="Add a task…" 
+             aria-label="Add a task" 
+             maxlength="180" />
       <button class="add-btn" 
               type="submit" 
-              aria-label="Add task"
-              ></button>
+              aria-label="Add task"></button>
     </div>
   </form>
   
-<script type="module" src="main.js"></script>
+  <!-- Your existing main JS -->
+  <script type="module" src="main.js"></script>
 
+  <!-- PWA Service Worker registration + update banner -->
+  <script>
+    (function(){
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/Todo/sw.js').then(reg => {
+          reg.addEventListener('updatefound', () => {
+            const newSW = reg.installing;
+            newSW?.addEventListener('statechange', () => {
+              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                // Show update banner
+                const bar = document.createElement('div');
+                bar.textContent = 'Update available — tap to reload';
+                Object.assign(bar.style, {
+                  position:'fixed', inset:'auto 0 0 0', padding:'12px 16px',
+                  background:'#111827', color:'#fff', textAlign:'center', zIndex:'9999',
+                  cursor:'pointer'
+                });
+                bar.addEventListener('click', () => location.reload());
+                document.body.appendChild(bar);
+              }
+            });
+          });
+        }).catch(console.error);
+      }
+    })();
+  </script>
 </body>
 </html>
