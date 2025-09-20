@@ -233,6 +233,31 @@ export function unlockScrollRobust() {
 
 // Global cleanup function
 export function cleanup() {
+  // Remove form handlers
+  const form = document.getElementById('addMainForm');
+  if (form && mainFormHandler) {
+    form.removeEventListener('submit', mainFormHandler);
+    mainFormHandler = null;
+  }
+  
+  if (app && appSubmitHandler) {
+    app.removeEventListener('submit', appSubmitHandler);
+    appSubmitHandler = null;
+  }
+  
+  // Clean up drag
+  if (window._cleanupDrag) {
+    window._cleanupDrag();
+  }
+  
+  // Reset crossBound here where it's defined
+  crossBound = false;  // <-- ADD THIS LINE
+  
+  // Clean up swipe
+  if (typeof cleanupSwipeListeners === 'function') {
+    cleanupSwipeListeners();
+  }
+  
   // Remove any global event listeners
   if (window._resizeHandler) {
     window.removeEventListener('resize', window._resizeHandler);
@@ -246,6 +271,10 @@ export function cleanup() {
   // Reset gesture state
   gesture.drag = false;
   gesture.swipe = false;
+  
+  // Reset bound flags
+  addersbound = false;
+  crossBound = false;  // <-- THIS ONE IS ALREADY HERE, GOOD
 }
 
 export { renderAll } from './rendering.js';

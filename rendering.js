@@ -1,6 +1,9 @@
 // rendering.js - DOM rendering functionality
 import { model, saveModel } from './state.js';
 import { safeExecute } from './utils.js';
+// Add these imports at the top
+import { cleanupSwipeListeners } from './swipe.js';
+import { cleanupManager } from './cleanup.js';
 
 let app = null;
 

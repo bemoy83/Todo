@@ -4,11 +4,13 @@ import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations } from './taskOperations.js';
 import { SWIPE, FEEDBACK, TIMING } from './constants.js';
 import { throttle } from './utils.js';
+import { cleanupManager } from './cleanup.js';
 
 export function enableSwipe() {
   if (!FLAGS.swipeGestures) return;
   
-  // NO MORE CSS INJECTION! It's all in styles.css now
+  // Clean up old listeners first
+  cleanupSwipeListeners();
   
   // Re-query DOM elements every time this is called (after re-renders)
   const subtaskWraps = document.querySelectorAll('.swipe-wrap');
@@ -37,6 +39,27 @@ export function enableSwipe() {
   }
 }
 
+// Add this new function after enableSwipe()
+export function cleanupSwipeListeners() {
+  // Clean up subtask wraps
+  document.querySelectorAll('.swipe-wrap').forEach(wrap => {
+    if (wrap._cleanupResize) {
+      wrap._cleanupResize();
+      wrap._cleanupResize = null;
+    }
+    wrap._swipeBound = false;
+  });
+  
+  // Clean up card wraps
+  document.querySelectorAll('.card-swipe-wrap').forEach(wrap => {
+    if (wrap._cleanupResize) {
+      wrap._cleanupResize();
+      wrap._cleanupResize = null;
+    }
+    wrap._swipeBound = false;
+  });
+}
+
 function attachSubtaskSwipe(wrap) {
   const row = wrap.querySelector('.subtask');
   const actions = wrap.querySelector('.swipe-actions');
@@ -52,7 +75,15 @@ function attachSubtaskSwipe(wrap) {
   };
   
   alignActions();
-  window.addEventListener('resize', alignActions);
+  
+  // Store the resize handler so we can remove it later
+  const resizeHandler = () => alignActions();
+  window.addEventListener('resize', resizeHandler);
+  
+  // Store cleanup function on the element
+  wrap._cleanupResize = () => {
+    window.removeEventListener('resize', resizeHandler);
+  };
 
   attachSwipeToElement(wrap, row, actions, leftZone, rightZone, 'subtask');
 }
@@ -72,7 +103,15 @@ function attachTaskSwipe(wrap) {
   };
   
   alignActions();
-  window.addEventListener('resize', alignActions);
+  
+  // Store the resize handler so we can remove it later
+  const resizeHandler = () => alignActions();
+  window.addEventListener('resize', resizeHandler);
+  
+  // Store cleanup function on the element
+  wrap._cleanupResize = () => {
+    window.removeEventListener('resize', resizeHandler);
+  };
 
   attachSwipeToElement(wrap, row, actions, leftZone, rightZone, 'task');
 }

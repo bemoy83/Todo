@@ -25,10 +25,17 @@ const {
   SNAP_EPS,
 } = DRAG;
 
+// ADD THESE TWO NEW LINES
+let appPointerDownHandler = null;
+let isDragBound = false;
+
 export function bindCrossSortContainer() {
-  const app = document.getElementById("app");
-  const dragLayer = document.getElementById("dragLayer");
-  if (!app || !dragLayer) return;
+// Check if already bound
+if (isDragBound) return;
+
+const app = document.getElementById("app");
+const dragLayer = document.getElementById("dragLayer");
+if (!app || !dragLayer) return;
 
   patchCSSOnce();
 
@@ -123,9 +130,20 @@ export function bindCrossSortContainer() {
   const CARD_STICKY = 16,
     CARD_SWAP_PX = 56,
     CARD_EDGE_FRAC = 0.25;
-
+  
   // FIXED: Use a single unified event listener instead of two competing ones
-  app.addEventListener("pointerdown", onUnifiedPointerDown, { passive: false });
+  if (appPointerDownHandler) {
+    app.removeEventListener("pointerdown", appPointerDownHandler);
+  }
+  
+  // Create new handler (we'll use the existing onUnifiedPointerDown function)
+  appPointerDownHandler = onUnifiedPointerDown;
+  
+  // Add new handler
+  app.addEventListener("pointerdown", appPointerDownHandler, { passive: false });
+  
+  // Mark as bound
+  isDragBound = true;
 
   // UNIFIED event handler that determines what type of drag to start
   function onUnifiedPointerDown(e) {
@@ -874,6 +892,16 @@ export function bindCrossSortContainer() {
     clastSwapY = null;
     window.removeEventListener("pointermove", onCardPointerMove);
   }
+  
+  // This allows other modules to clean up drag listeners
+  window._cleanupDrag = () => {
+    if (appPointerDownHandler && app) {
+      app.removeEventListener("pointerdown", appPointerDownHandler);
+      appPointerDownHandler = null;
+    }
+    isDragBound = false;
+    // Note: crossBound is managed by core.js, not here
+  };
 }
 
 function patchCSSOnce() {
