@@ -9,6 +9,7 @@ import { setApp } from './rendering.js';
 import { renderAll } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
+import { cleanupSwipeListeners } from './swipe.js';
 
 // ===== Helpers =====
 export const $  = (s, root=document) => root.querySelector(s);
@@ -73,62 +74,71 @@ export function bootBehaviors(){
   bindKeyboardShortcuts();
 }
 
+// Add these variables BEFORE the function
+let addersbound = false;
+let mainFormHandler = null;
+let appSubmitHandler = null;
+
 function bindAdders(){
-  // Main add bar - UPDATED to use TaskOperations
+  // Exit early if already bound
+  if (addersbound) return;
+  
+  // Main add bar - only bind once
   const form = document.getElementById('addMainForm');
-  if(form && !form._bound){
-    form.addEventListener('submit', async (e)=>{
+  if(form && !mainFormHandler){
+    mainFormHandler = async (e) => {
       e.preventDefault();
       const inp = document.getElementById('newTaskTitle');
       const title = (inp?.value || '').trim();
       if(!title) return;
       
       try {
-        // Use TaskOperations instead of direct model manipulation
         const task = await TaskOperations.task.create(title);
         inp.value = '';
         
-        // Auto-focus the newly created task's subtask input for rapid entry
         if (task) {
           focusSubtaskInput(task.id);
         }
       } catch (error) {
         console.error('Failed to create task:', error);
-        // Optionally show user feedback
       }
-    });
-    form._bound = true;
+    };
+    
+    form.addEventListener('submit', mainFormHandler);
   }
   
-  // Delegate for per-card subtask add - UPDATED to use TaskOperations
-  app?.addEventListener('submit', function(e){
-    const f = e.target.closest('.add-subtask-form');
-    if(!f) return;
-    e.preventDefault();
-    
-    const mainId = f.dataset.mainId;
-    const input = f.querySelector('input[name="subtask"]');
-    const text = (input.value || '').trim();
-    if(!text) return;
-    
-    // Use TaskOperations instead of direct model manipulation
-    TaskOperations.subtask.create(mainId, text).then(() => {
-      // Clear input after successful creation
-      input.value = '';
+  // Delegate for per-card subtask add - only bind once to app
+  const app = document.getElementById('app');
+  if (app && !appSubmitHandler) {
+    appSubmitHandler = async function(e){
+      const f = e.target.closest('.add-subtask-form');
+      if(!f) return;
+      e.preventDefault();
       
-      // Restore focus to the same input after re-render for rapid entry
-      setTimeout(() => {
-        const taskCard = document.querySelector('.task-card[data-id="' + mainId + '"]');
-        const subtaskInput = taskCard?.querySelector('.add-sub-input');
-        if (subtaskInput) {
-          subtaskInput.focus();
-        }
-      }, 50);
-    }).catch(error => {
-      console.error('Failed to create subtask:', error);
-      // Optionally show user feedback
-    });
-  }, { once: false });
+      const mainId = f.dataset.mainId;
+      const input = f.querySelector('input[name="subtask"]');
+      const text = (input.value || '').trim();
+      if(!text) return;
+      
+      TaskOperations.subtask.create(mainId, text).then(() => {
+        input.value = '';
+        
+        setTimeout(() => {
+          const taskCard = document.querySelector('.task-card[data-id="' + mainId + '"]');
+          const subtaskInput = taskCard?.querySelector('.add-sub-input');
+          if (subtaskInput) {
+            subtaskInput.focus();
+          }
+        }, 50);
+      }).catch(error => {
+        console.error('Failed to create subtask:', error);
+      });
+    };
+    
+    app.addEventListener('submit', appSubmitHandler);
+  }
+  
+  addersbound = true;
 }
 
 // ===== Shared util for swipe/drag =====
@@ -240,18 +250,14 @@ export function cleanup() {
     mainFormHandler = null;
   }
   
+  const app = document.getElementById('app');
   if (app && appSubmitHandler) {
     app.removeEventListener('submit', appSubmitHandler);
     appSubmitHandler = null;
   }
   
-  // Clean up drag
-  if (window._cleanupDrag) {
-    window._cleanupDrag();
-  }
-  
-  // Reset crossBound here where it's defined
-  crossBound = false;  // <-- ADD THIS LINE
+  // Note: We're NOT calling window._cleanupDrag() here anymore
+  // because drag uses delegation and doesn't need frequent cleanup
   
   // Clean up swipe
   if (typeof cleanupSwipeListeners === 'function') {
@@ -274,7 +280,7 @@ export function cleanup() {
   
   // Reset bound flags
   addersbound = false;
-  crossBound = false;  // <-- THIS ONE IS ALREADY HERE, GOOD
+  crossBound = false;
 }
 
 export { renderAll } from './rendering.js';
