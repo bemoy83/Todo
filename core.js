@@ -1,15 +1,14 @@
 // core.js – ES Module updated with TaskOperations
 
 import { bindCrossSortContainer } from './drag.js';
-import { enableSwipe } from './swipe.js';
+import { enableSwipe, cleanupSwipeListeners } from './swipe.js';
 import { bindMenu } from './menu.js';
 import { debounce, safeExecute } from './utils.js';
 import { model, saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticUpdate } from './state.js';
-import { setApp } from './rendering.js';
-import { renderAll } from './rendering.js';
+import { setApp, renderAll } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
-import { cleanupSwipeListeners } from './swipe.js';
+import { appEvents } from './events.js';
 
 // ===== Helpers =====
 export const $  = (s, root=document) => root.querySelector(s);
@@ -36,10 +35,13 @@ export const gesture = { drag: false, swipe: false };
 
 // ===== Behavior wiring =====
 let crossBound = false;
+let keyboardDelegated = false;
+
 function bindKeyboardShortcuts() {
-  if (document._keyboardBound) return;
+  if (keyboardDelegated) return;
   
-  document.addEventListener('keydown', (e) => {
+  // Use event delegation instead of direct binding
+  appEvents.on('keydown', 'body', (e) => {
     // Only handle shortcuts when not typing in an input
     if (e.target.matches('input, textarea, [contenteditable]')) return;
     
@@ -63,15 +65,128 @@ function bindKeyboardShortcuts() {
     }
   });
   
-  document._keyboardBound = true;
+  keyboardDelegated = true;
+}
+// Add this new function after bindKeyboardShortcuts
+let delegatedEventsSetup = false;
+
+function setupDelegatedEvents() {
+  if (delegatedEventsSetup) return;
+  
+  // Handle action buttons (complete, edit, delete) for both tasks and subtasks
+  appEvents.on('click', '.action', async (e, button) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const action = button.dataset.act;
+    const wrap = button.closest('.swipe-wrap, .card-swipe-wrap');
+    
+    if (!action || !wrap) return;
+    
+    try {
+      await handleAction(action, wrap);
+    } catch (error) {
+      console.error('Action failed:', error);
+    }
+  });
+  
+  // Main task form submission
+  appEvents.on('submit', '#addMainForm', async (e, form) => {
+    e.preventDefault();
+    const inp = document.getElementById('newTaskTitle');
+    const title = (inp?.value || '').trim();
+    if (!title) return;
+    
+    try {
+      const task = await TaskOperations.task.create(title);
+      inp.value = '';
+      
+      if (task) {
+        focusSubtaskInput(task.id);
+      }
+    } catch (error) {
+      console.error('Failed to create task:', error);
+    }
+  });
+  
+  // Subtask form submission (delegated for all forms)
+  appEvents.on('submit', '.add-subtask-form', async (e, form) => {
+    e.preventDefault();
+    
+    const mainId = form.dataset.mainId;
+    const input = form.querySelector('input[name="subtask"]');
+    const text = (input.value || '').trim();
+    if (!text) return;
+    
+    try {
+      await TaskOperations.subtask.create(mainId, text);
+      input.value = '';
+      
+      // Restore focus after re-render
+      setTimeout(() => {
+        const taskCard = document.querySelector(`.task-card[data-id="${mainId}"]`);
+        const subtaskInput = taskCard?.querySelector('.add-sub-input');
+        if (subtaskInput) {
+          subtaskInput.focus();
+        }
+      }, 50);
+    } catch (error) {
+      console.error('Failed to create subtask:', error);
+    }
+  });
+  
+  delegatedEventsSetup = true;
+}
+
+// Add this helper function for handling actions
+async function handleAction(action, wrap) {
+  const isTask = wrap.classList.contains('card-swipe-wrap');
+  
+  if (isTask) {
+    const taskId = wrap.closest('.task-card').dataset.id;
+    
+    switch(action) {
+      case 'complete-all':
+        await TaskOperations.task.toggleCompletion(taskId);
+        break;
+      case 'edit-title':
+        const { startEditTaskTitle } = await import('./editing.js');
+        startEditTaskTitle(wrap.querySelector('.card-row'));
+        break;
+      case 'delete-task':
+        await TaskOperations.task.delete(taskId);
+        break;
+    }
+  } else {
+    const mainId = wrap.dataset.mainId;
+    const subId = wrap.dataset.id;
+    
+    switch(action) {
+      case 'complete':
+        await TaskOperations.subtask.toggle(mainId, subId);
+        break;
+      case 'edit':
+        const { startEditMode } = await import('./editing.js');
+        startEditMode(wrap.querySelector('.subtask'));
+        break;
+      case 'delete':
+        await TaskOperations.subtask.delete(mainId, subId);
+        break;
+    }
+  }
 }
 
 export function bootBehaviors(){
-  if(!crossBound){ bindCrossSortContainer(); crossBound = true; }
-  enableSwipe(); // This needs to run every time to rebind to new DOM elements
+  if(!crossBound){ 
+    bindCrossSortContainer(); 
+    crossBound = true; 
+  }
+  
+  enableSwipe();
   bindAdders();
   bindMenu();
   bindKeyboardShortcuts();
+  setupDelegatedEvents();  // ADD THIS LINE
 }
 
 // Add these variables BEFORE the function
@@ -79,66 +194,11 @@ let addersbound = false;
 let mainFormHandler = null;
 let appSubmitHandler = null;
 
+// We can remove the variables we added earlier since we're using delegation now
 function bindAdders(){
-  // Exit early if already bound
-  if (addersbound) return;
-  
-  // Main add bar - only bind once
-  const form = document.getElementById('addMainForm');
-  if(form && !mainFormHandler){
-    mainFormHandler = async (e) => {
-      e.preventDefault();
-      const inp = document.getElementById('newTaskTitle');
-      const title = (inp?.value || '').trim();
-      if(!title) return;
-      
-      try {
-        const task = await TaskOperations.task.create(title);
-        inp.value = '';
-        
-        if (task) {
-          focusSubtaskInput(task.id);
-        }
-      } catch (error) {
-        console.error('Failed to create task:', error);
-      }
-    };
-    
-    form.addEventListener('submit', mainFormHandler);
-  }
-  
-  // Delegate for per-card subtask add - only bind once to app
-  const app = document.getElementById('app');
-  if (app && !appSubmitHandler) {
-    appSubmitHandler = async function(e){
-      const f = e.target.closest('.add-subtask-form');
-      if(!f) return;
-      e.preventDefault();
-      
-      const mainId = f.dataset.mainId;
-      const input = f.querySelector('input[name="subtask"]');
-      const text = (input.value || '').trim();
-      if(!text) return;
-      
-      TaskOperations.subtask.create(mainId, text).then(() => {
-        input.value = '';
-        
-        setTimeout(() => {
-          const taskCard = document.querySelector('.task-card[data-id="' + mainId + '"]');
-          const subtaskInput = taskCard?.querySelector('.add-sub-input');
-          if (subtaskInput) {
-            subtaskInput.focus();
-          }
-        }, 50);
-      }).catch(error => {
-        console.error('Failed to create subtask:', error);
-      });
-    };
-    
-    app.addEventListener('submit', appSubmitHandler);
-  }
-  
-  addersbound = true;
+  // This function is now empty because we use event delegation
+  // We keep it for backwards compatibility
+  // All the work is done in setupDelegatedEvents()
 }
 
 // ===== Shared util for swipe/drag =====
@@ -243,23 +303,14 @@ export function unlockScrollRobust() {
 
 // Global cleanup function
 export function cleanup() {
-  // Remove form handlers
-  const form = document.getElementById('addMainForm');
-  if (form && mainFormHandler) {
-    form.removeEventListener('submit', mainFormHandler);
-    mainFormHandler = null;
-  }
+  // Destroy all delegated events
+  appEvents.destroy();
   
-  const app = document.getElementById('app');
-  if (app && appSubmitHandler) {
-    app.removeEventListener('submit', appSubmitHandler);
-    appSubmitHandler = null;
-  }
+  // Reset delegation flags
+  keyboardDelegated = false;
+  delegatedEventsSetup = false;
   
-  // Note: We're NOT calling window._cleanupDrag() here anymore
-  // because drag uses delegation and doesn't need frequent cleanup
-  
-  // Clean up swipe
+  // Clean up swipe (still needs individual cleanup)
   if (typeof cleanupSwipeListeners === 'function') {
     cleanupSwipeListeners();
   }
@@ -279,7 +330,6 @@ export function cleanup() {
   gesture.swipe = false;
   
   // Reset bound flags
-  addersbound = false;
   crossBound = false;
 }
 
